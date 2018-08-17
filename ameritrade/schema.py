@@ -25,7 +25,6 @@ PreparedMethod = NamedTuple('PreparedMethod', [
     ('required_fields', Set[str]),
 ])
 
-
 Arg = NamedTuple('Arg', [
     ('name', str),
     ('required', bool),
@@ -166,15 +165,57 @@ _METHODS = [
       O('optionType')),
 
     # Price History
-    ## FIXME: TODO
+    M('GetPriceHistory',
+      'Get price history for a symbol',
+      'GET', '/marketdata/{symbol}/pricehistory',
+      R('symbol'),
+      O('periodType'),
+      O('period'),
+      O('frequencyType'),
+      O('frequency'),
+      O('endDate'),
+      O('startDate'),
+      O('needExtendedHoursData')),
 
     # Quotes
-    ## FIXME: TODO
+    M('GetQuotes',
+      'Get quote for one or more symbols.',
+      'GET', '/marketdata/quotes',
+      R('symbol')),
+    M('GetQuote',
+      'Get quote for a symbol',
+      'GET', '/marketdata/{symbol}/quotes',
+      R('symbol')),
 
     # Transaction History
-    ## FIXME: TODO
+    M('GetTransaction',
+      'Transaction for a specific account.',
+      'GET', '/accounts/{accountId}/transactions/{transactionId}',
+      R('accountId'),
+      R('transactionId')),
+    M('GetTransactions',
+      'Transactions for a specific account.',
+      'GET', '/accounts/{accountId}/transactions',
+      R('accountId'),
+      O('type'),
+      O('symbol'),
+      O('startDate'),
+      O('endDate')),
 
     # User Info and Preferences
+    M('GetPreferences',
+      'Preferences for a specific account.',
+      'GET', '/accounts/{accountId}/preferences',
+      R('accountId')),
+    M('GetStreamerSubscriptionKeys',
+      'SubscriptionKey for provided accounts or default accounts.',
+      'GET', '/userprincipals/streamersubscriptionkeys',
+      O('accountIds')),
+    M('GetUserPrincipals',
+      'User Principal details.',
+      'GET', '/userprincipals',
+      O('fields')),
+    # M('UpdatePreferences',
     ## FIXME: TODO
 
     # Watchlist

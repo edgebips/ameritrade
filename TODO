@@ -1,3 +1,6 @@
 - Finish adding all the methods to the schema
 - Add a safe 'read_only' mode, removing order placement methods and such.
-- Add regexes for argument types and check them.
+- Add argument data types and check them.
+- Add support for POST, DELETE, PUT and PATCH methods.
+- Post a clear instructions on how to create a self-signed certificate with
+  correct paths.

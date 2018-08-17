@@ -17,8 +17,9 @@ from decimal import Decimal
 import ameritrade
 
 # Set these values before calling this.
-CLIENT_ID = os.environ['AMERITRADE_CLIENT_ID']
-CONFIG_DIR = os.environ['AMERITRADE_CONFIG_DIR']
+CLIENT_ID = os.environ.get('AMERITRADE_CLIENT_ID', None)
+CONFIG_DIR = os.environ.get('AMERITRADE_CONFIG_DIR',
+                            path.join(os.getenv("HOME"), '.ameritrade'))
 
 
 Option = NamedTuple('Option', [
@@ -47,6 +48,23 @@ def get_options_values(api):
     return options
 
 
+def first(iterable):
+    return next(iter(iterable))
+
+def only(dictionary):
+    assert len(dictionary) == 1
+    return first(dictionary.values())
+
+
+def get_first_account_api(api):
+    accounts = api.GetAccounts()
+    accounts = [
+        account
+        for account in accounts
+        if any(Decimal(value) != 0 for value in only(account)['currentBalances'].values())]
+    return only(first(accounts))['accountId']
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.strip())
     parser.add_argument('-c', '--client_id', action='store',
@@ -61,13 +79,33 @@ def main():
                                    redirect_uri='https://localhost:8444',
                                    config_dir=CONFIG_DIR)
 
-    instruments = api.SearchInstruments(symbol='SPY', projection='symbol-search')
-    hours = api.GetHoursMultipleMarkets()
-    hours = api.GetHoursMultipleMarkets()
-    pprint.pprint(hours)
+    accountId = get_first_account_api(api)
 
-    for o in get_options_values(api):
-        print(o)
+    # prefs = api.GetPreferences(accountId=accountId)
+    # pprint(prefs)
+
+    # keys = api.GetStreamerSubscriptionKeys(accountIds=accountId)
+    # pprint(keys)
+
+    # prin = api.GetUserPrincipals(fields='surrogateIds')
+    # pprint(prin)
+
+    # txns = api.GetTransactions(accountId=accountId)
+    # pprint(txns)
+
+    # instruments = api.SearchInstruments(symbol='SPY', projection='symbol-search')
+    # hours = api.GetHoursMultipleMarkets()
+    # hours = api.GetHoursMultipleMarkets()
+    # pprint.pprint(hours)
+
+    # for o in get_options_values(api):
+    #     print(o)
+
+    quotes = api.GetQuotes(symbol='VTI')
+    pprint(quotes)
+
+    hist = api.GetPriceHistory(symbol='VTI')
+    pprint(hist)
 
 
 if __name__ == '__main__':

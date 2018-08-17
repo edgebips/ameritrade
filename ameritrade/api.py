@@ -105,7 +105,7 @@ class CallableMethod:
         headers = auth.get_headers(self.secrets)
         path_kw = {field: kw.pop(field) for field in method.url_fields}
         path = method.path.format(**path_kw)
-        url = 'https://api.tdameritrade.com/v1/{}'.format(path)
+        url = 'https://api.tdameritrade.com/v1{}'.format(path)
         logging.info("Opening URL: %s", url)
 
         # Call the resources with parameters.
