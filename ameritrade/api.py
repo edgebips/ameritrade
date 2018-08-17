@@ -88,30 +88,27 @@ class CallableMethod:
         self.method = schema.SCHEMA[function]
 
     def __call__(self, **kw):
-        provided_fields = set(kw.keys())
-        required_fields = [field.name
-                           for field in self.method.fields
-                           if field.required]
-        uncovered_fields = set(required_fields) - provided_fields
-        if uncovered_fields:
-            raise ValueError("Missing required fields: {}".format(uncovered_fields))
-
-        all_fields = [field.name for field in self.method.fields]
-        invalid_fields = provided_fields - set(all_fields)
-        if invalid_fields:
-            raise ValueError("Invalid fields: {}".format(invalid_fields))
-
-        path_fields = [match.group(1)
-                       for match in re.finditer(r"{(.*)}", self.method.path)]
-        path_kw = {field: kw.pop(field) for field in path_fields}
-
-
         method = self.method
 
+        # Check that all the required fields are being provided.
+        provided_fields = set(kw.keys())
+        uncovered_fields = method.required_fields - provided_fields
+        if uncovered_fields:
+            raise TypeError("Missing required fields: {}".format(uncovered_fields))
+
+        # Check that there aren't any extra fields.
+        invalid_fields = provided_fields - method.all_fields
+        if invalid_fields:
+            raise TypeError("Invalid fields: {}".format(invalid_fields))
+
+        # Build the headers and URL path to call.
         headers = auth.get_headers(self.secrets)
+        path_kw = {field: kw.pop(field) for field in method.url_fields}
         path = method.path.format(**path_kw)
-        logging.info("Opening URL: %s", path)
         url = 'https://api.tdameritrade.com/v1/{}'.format(path)
+        logging.info("Opening URL: %s", url)
+
+        # Call the resources with parameters.
         params = {key: str(value) for key, value in kw.items()}
         if self.method.http_method == 'GET':
             resp = requests.get(url, params=params, headers=headers)
