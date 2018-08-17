@@ -118,7 +118,26 @@ _METHODS = [
            ]),
 
     # Option Chains
-    ## FIXME: TODO
+    Method('GetOptionChain',
+           'Get option chain for an optionable Symbol',
+           'GET', '/marketdata/chains', [
+               Arg('symbol', False),
+               Arg('contractType', False),
+               Arg('strikeCount', False),
+               Arg('includeQuotes', False),
+               Arg('strategy', False),
+               Arg('interval', False),
+               Arg('strike', False),
+               Arg('range', False),
+               Arg('fromDate', False),
+               Arg('toDate', False),
+               Arg('volatility', False),
+               Arg('underlyingPrice', False),
+               Arg('interestRate', False),
+               Arg('daysToExpiration', False),
+               Arg('expMonth', False),
+               Arg('optionType', False),
+           ]),
 
     # Price History
     ## FIXME: TODO
