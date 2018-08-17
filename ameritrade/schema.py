@@ -32,6 +32,7 @@ Arg = NamedTuple('Arg', [
 ])
 
 def prepare(method):
+    """Cache attributes for method calls."""
     from ameritrade import api
     all_fields = set(field.name for field in method.fields)
     required_fields = set(field.name
@@ -49,16 +50,12 @@ def prepare(method):
                           required_fields)
 
 def M(name, description, http_method, path, *fields):
-    "Create method."
     return Method(name, description, http_method, path, fields)
-
 def R(name): return Arg(name, True, False)
 def O(name): return Arg(name, False, False)
 
 
 _METHODS = [
-    # Accounts and Trading
-
     # Accounts and Trading > Orders.
     M('CancelOrder',
       'Cancel a specific order for a specific account.',
@@ -89,12 +86,43 @@ _METHODS = [
       O('fromEnteredTime'),
       O('toEnteredTime'),
       O('status')),
-    # M('PlaceOrder',
-    # M('ReplaceOrder',
-    ## FIXME: TODO
+    M('PlaceOrder',
+      'Place an order for a specific account.',
+      'POST', '/accounts/{accountId}/orders',
+      R('accountId')),  # INCOMPLETE
+    M('ReplaceOrder',
+      ("Replace an existing order for an account. The existing order will be replaced by "
+       "the new order. Once replaced, the old order will be canceled and a new order will "
+       "be created."),
+      'PUT', '/accounts/{accountId}/orders/{orderId}',
+      R('accountId'),
+      R('orderId')),  # INCOMPLETE
 
     # Accounts and Trading > Saved Orders.
-    ## FIXME: TODO
+    M('CreateSavedOrder',
+      'Save an order for a specific account.',
+      'POST', '/accounts/{accountId}/savedorders',
+      R('accountId')),  # INCOMPLETE
+    M('DeleteSavedOrder',
+      'Delete a specific saved order for a specific account.',
+      'DELETE', '/accounts/{accountId}/savedorders/{savedOrderId}',
+      R('accountId'),
+      R('savedOrderId')),  # INCOMPLETE
+    M('GetSavedOrder',
+      'Specific saved order by its ID, for a specific account.',
+      'GET', '/accounts/{accountId}/savedorders/{savedOrderId}',
+      R('accountId'),
+      R('savedOrderId')),  # INCOMPLETE
+    M('GetSavedOrdersByPath',
+      'Saved orders for a specific account.',
+      'GET', '/accounts/{accountId}/savedorders',
+      R('accountId')),  # INCOMPLETE
+    M('Replace Saved Order',
+      ("Replace an existing saved order for an account. The existing saved order will "
+       "be replaced by the new order."),
+      'PUT', '/accounts/{accountId}/savedorders/{savedOrderId}',
+      R('accountId'),
+      R('savedOrderId')),  # INCOMPLETE
 
     # Accounts and Trading > Accounts.
     M('GetAccount',
@@ -107,9 +135,10 @@ _METHODS = [
       'GET', '/accounts',
       O('fields')),
 
-
     # Authentication
-    ## FIXME: TODO
+    M('PostAccessToken',
+      'The token endpoint returns an access token along with an optional refresh token.',
+      'POST', '/oauth2/token'),  # INCOMPLETE
 
     # Instruments
     M('SearchInstruments',
@@ -128,7 +157,6 @@ _METHODS = [
       'GET', '/marketdata/{market}/hours',
       R('market'),
       O('date')),
-
     M('GetHoursMultipleMarkets',
       'Retrieve market hours for specified single market',
       'GET', '/marketdata/hours',
@@ -215,11 +243,50 @@ _METHODS = [
       'User Principal details.',
       'GET', '/userprincipals',
       O('fields')),
-    # M('UpdatePreferences',
-    ## FIXME: TODO
+    M('UpdatePreferences',
+      ("Update preferences for a specific account. Please note that the "
+       "directOptionsRouting and directEquityRouting values cannot be modified via "
+       "this operation."),
+      'PUT', '/accounts/{accountId}/preferences',
+      R('accountId')),  # INCOMPLETE
 
     # Watchlist
-    ## FIXME: TODO
+    M('CreateWatchlist',
+      ("Create watchlist for specific account.This method does not verify that the symbol "
+       "or asset type are valid."),
+      'POST', '/accounts/{accountId}/watchlists',
+      R('accountId')),  # INCOMPLETE
+    M('Delete Watchlist',
+      "Delete watchlist for a specific account.",
+      'DELETE', '/accounts/{accountId}/watchlists/{watchlistId}',
+      R('accountId'),
+      R('watchlistId')),  # INCOMPLETE
+    M('Get Watchlist',
+      "Specific watchlist for a specific account.",
+      'GET', '/accounts/{accountId}/watchlists/{watchlistId}',
+      R('accountId'),
+      R('watchlistId')),  # INCOMPLETE
+    M('Get Watchlists for Multiple Accounts',
+      "All watchlists for all of the user's linked accounts.",
+      'GET', '/accounts/watchlists'),  # INCOMPLETE
+    M('Get Watchlists for Single Account',
+      "All watchlists of an account.",
+      'GET', '/accounts/{accountId}/watchlists',
+      R('accountId')),  # INCOMPLETE
+    M('Replace Watchlist',
+      ("Replace watchlist for a specific account. This method does not verify that the "
+       "symbol or asset type are valid."),
+      'PUT', '/accounts/{accountId}/watchlists/{watchlistId}',
+      R('accountId'),
+      R('watchlistId')),  # INCOMPLETE
+    M('Update Watchlist',
+      ("Partially update watchlist for a specific account: change watchlist name, add to "
+       "the beginning/end of a watchlist, update or delete items in a watchlist. This "
+       "method does not verify that the symbol or asset type are valid."),
+      'PATCH', '/accounts/{accountId}/watchlists/{watchlistId}',
+      R('accountId'),
+      R('watchlistId')),  # INCOMPLETE
+
 ]
 
 SCHEMA = {method.name: prepare(method) for method in _METHODS}

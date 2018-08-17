@@ -20,26 +20,32 @@ def open(client_id: str,
          key_file: str = None,
          certificate_file: str = None,
          timeout: int = 300,
-         secrets_file: str = None):
+         secrets_file: str = None,
+         readonly: bool = True):
+    """Create an API endpoint. This is the main entry point."""
     config = Config(client_id,
                     redirect_uri,
                     key_file,
                     certificate_file,
                     timeout,
-                    secrets_file)
+                    secrets_file,
+                    readonly)
     return AmeritradeAPI(config)
 
 
 def open_with_dir(client_id: str,
                   config_dir: str = os.getcwd(),
                   redirect_uri: str = 'https://localhost:8444',
-                  timeout: int = 300):
+                  timeout: int = 300,
+                  readonly: bool = True):
+    """Create an API endpoint with a config dfir. This is the main entry point."""
     config = Config(client_id,
                     redirect_uri,
                     path.join(config_dir, 'key.pem'),
                     path.join(config_dir, 'certificate.pem'),
                     timeout,
-                    path.join(config_dir, 'secrets.json'))
+                    path.join(config_dir, 'secrets.json'),
+                    readonly)
     return AmeritradeAPI(config)
 
 
@@ -47,19 +53,28 @@ def open_with_dir(client_id: str,
 Config = NamedTuple('Config', [
     # The OAuth client id string, such as '<USERNAME>@AMER.OAUTHAP'.
     ('client_id', str),
+
     # A redirect URI, such as 'https://127.0.0.1:8444'. Note that this must
     # match that with which you created your app in the Ameritrade API
     # interface.
     ('redirect_uri', str),
+
     # The location of the key PEM file.
     ('key_file', str),
+
     # The location of the certificate PEM file.
     ('certificate_file', str),
+
     # Timeout (in seconds) to wait for OAuth token response.
     ('timeout', int),
+
     # The location of the JSON file to store the OAuth token in between
     # invocations.
     ('secrets_file', str),
+
+    # Safe-mode that disallows any methods that modify state. Only allows
+    # getters to read data from the account.
+    ('readonly', bool),
     ])
 
 # A dict of secrets. Contains the access token and Bearer type.
@@ -76,16 +91,21 @@ class AmeritradeAPI:
         self.secrets = auth.read_or_create_secrets(config.secrets_file, config)
 
     def __getattribute__(self, key):
-        return CallableMethod(key, object.__getattribute__(self, 'secrets'))
+        method = schema.SCHEMA[key]
+        # Disallow read-only methods.
+        if self.config.readonly and method.http_method == 'GET':
+            raise NameError("Method {} is not allowed in safe read-only mode.".format(
+                method.name))
+        else:
+            return CallableMethod(method, object.__getattribute__(self, 'secrets'))
 
 
 class CallableMethod:
     """Callable method."""
 
-    def __init__(self, function: str, secrets: Secrets):
-        self.function = function
+    def __init__(self, method: schema.PreparedMethod, secrets: Secrets):
+        self.method = method
         self.secrets = secrets
-        self.method = schema.SCHEMA[function]
 
     def __call__(self, **kw):
         method = self.method
@@ -113,5 +133,6 @@ class CallableMethod:
         if self.method.http_method == 'GET':
             resp = requests.get(url, params=params, headers=headers)
         else:
-            assert False, "No method for {}".format(self.function)
+            assert False, "Unsupported HTTP method for {}: {}".format(method.name,
+                                                                      method.http_method)
         return resp.json()

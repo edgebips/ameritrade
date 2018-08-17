@@ -8,8 +8,8 @@ from ameritrade import api
 
 @mock.patch('ameritrade.auth.get_headers')
 @mock.patch('requests.get')
-def test_fields(_, reqget):
-    method = api.CallableMethod('GetMovers', object())
+def test_get(_, reqget):
+    method = api.CallableMethod(schema.SCHEMA['GetMovers'], object())
 
     # Missing a required field.
     with pytest.raises(TypeError):
@@ -31,3 +31,12 @@ def test_fields(_, reqget):
     # Just invalid fields.
     with pytest.raises(TypeError):
         result = method(impostor='up')
+
+
+@mock.patch('ameritrade.auth.get_headers')
+@mock.patch('requests.get')
+def test_readonly(_, reqget):
+    method = api.CallableMethod(schema.SCHEMA['CancelOrder'], object())
+
+    with pytest.raises(NameError):
+        method(accountId='accountId', orderId='orderId')
