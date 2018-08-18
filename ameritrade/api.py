@@ -93,7 +93,8 @@ class AmeritradeAPI:
     def __getattribute__(self, key):
         method = schema.SCHEMA[key]
         # Disallow read-only methods.
-        if self.config.readonly and method.http_method == 'GET':
+        config = object.__getattribute__(self, 'config')
+        if config.readonly and method.http_method != 'GET':
             raise NameError("Method {} is not allowed in safe read-only mode.".format(
                 method.name))
         else:
