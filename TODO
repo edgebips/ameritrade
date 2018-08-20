@@ -1,0 +1,6 @@
+- Add argument data types and check them.
+- Add support for POST, DELETE, PUT and PATCH methods.
+- Post a clear instructions on how to create a self-signed certificate with
+  correct paths.
+- Download return value schemas and integrate them.
+- Support positional arguments.
