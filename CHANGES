@@ -3,6 +3,8 @@
 
 2018-08-20
 
+  - Added example short single call strategy.
+
   - Added ameritrade.scripts and default function add_script_args() and
     open_with_args() in order to make it easy to write lots of example scripts.
 

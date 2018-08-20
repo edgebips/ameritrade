@@ -16,11 +16,6 @@ from decimal import Decimal
 
 import ameritrade
 
-# Set these values before calling this.
-CLIENT_ID = os.environ.get('AMERITRADE_CLIENT_ID', None)
-CONFIG_DIR = os.environ.get('AMERITRADE_CONFIG_DIR',
-                            path.join(os.getenv("HOME"), '.ameritrade'))
-
 
 Option = NamedTuple('Option', [
     ('symbol', str),
