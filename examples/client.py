@@ -67,17 +67,9 @@ def get_first_account_api(api):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.strip())
-    parser.add_argument('-c', '--client_id', action='store',
-                        default=CLIENT_ID,
-                        help='The client id OAuth username')
-    parser.add_argument('-x', '--expire', action='store_true',
-                        help="Expire OAuth token explicitly")
+    ameritrade.add_script_args(parser)
     args = parser.parse_args()
-    logging.basicConfig(level=logging.INFO)
-
-    api = ameritrade.open_with_dir(client_id=args.client_id,
-                                   redirect_uri='https://localhost:8444',
-                                   config_dir=CONFIG_DIR)
+    api = ameritrade.open_with_args(args)
 
     accountId = get_first_account_api(api)
 

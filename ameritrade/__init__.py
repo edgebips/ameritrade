@@ -15,6 +15,9 @@ __author__ = 'Martin Blais <blais@furius.ca>'
 __license__ = "GNU GPLv2"
 
 from ameritrade import api
-
 open = api.open
 open_with_dir = api.open_with_dir
+
+from ameritrade import scripts
+add_script_args = scripts.add_args
+open_with_args = scripts.open_with_args

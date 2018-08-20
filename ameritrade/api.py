@@ -84,7 +84,7 @@ Secrets = Dict[str, str]
 class AmeritradeAPI:
     """An Ameritrade endpoint, with credentials."""
 
-    def __init__(self, config: Config, expire=False):
+    def __init__(self, config: Config):
         """
         """
         self.config = config
