@@ -70,13 +70,16 @@ def get_candidates(chain, args):
            .filter(lambda row: row.strikeprice >= (underlying + args.pvalue * row.expi_vol)))
 
     # Mark options that are too close to the underlying price.
-    margin_price = underlying * (1. + args.near_margin/100)
-    tbl = tbl.create('tooclose',
-                     lambda row: '*' if row.strikeprice < margin_price else '')
+    tbl = tbl.create('pctaway',
+                     lambda row: 100*abs(1 - row.strikeprice / underlying))
+
+    if args.near_margin:
+        frac_margin = args.near_margin/100
+        tbl = tbl.filter(lambda row: abs(1 - row.strikeprice / underlying) >= frac_margin)
 
     # Sort to exhibit most interesting by some criteria.
     tbl = tbl.order(
-        lambda row: (-row.daystoexpiration, row.bidsize + row.asksize, row.bid),
+        lambda row: (-row.daystoexpiration, row.pctaway, row.bid, row.bidsize + row.asksize),
         asc=False)
 
     return tbl
@@ -99,7 +102,6 @@ def main():
                         help="Minimum p-value to use.")
 
     parser.add_argument('-m', '--near-margin', action='store', type=float,
-                        default=3.0,
                         help=("Fixed (over time) minimum margin (in pct) away from "
                               "the underlying."))
 
@@ -110,7 +112,7 @@ def main():
     fromDate = datetime.date.today() + datetime.timedelta(days=5)
     toDate = datetime.date.today() + datetime.timedelta(days=45)
     chain = api.GetOptionChain(symbol=args.underlying, strategy='SINGLE', contractType='CALL',
-                               strikeCount='20', range='SAK', interval='2',
+                               range='SAK',
                                fromDate=fromDate, toDate=toDate)
     if chain['status'] != 'SUCCESS':
         logging.error(chain)
