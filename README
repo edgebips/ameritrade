@@ -1,0 +1,34 @@
+============================================================
+   ameritrade: Python API to the TD Ameritrade REST API
+============================================================
+
+Introduction
+--------------------
+
+This is a thin Python wrapper for the TD Ameritrade broker API.
+
+The API is documnented at this page:
+https://developer.tdameritrade.com/apis
+
+
+Usage
+--------------------
+
+https://developer.tdameritrade.com/content/web-server-authentication-python-3
+
+   $ export AMERITRADE_CLIENT_ID='<USERNAME>@AMER.OAUTHAP'
+   $ export AMERITRADE_CONFIG_DIR=/path/to/encrypted/directory
+
+   $ cd /path/to/encrypted/directory
+   $ openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 365 -out certificate.pem
+
+Then from Python:
+
+   import ameritrade
+
+   def main():
+     parser = argparse.ArgumentParser(description=__doc__.strip())
+     ameritrade.add_script_args(parser)
+     args = parser.parse_args()
+     api = ameritrade.open_with_args(args)
+     ...
