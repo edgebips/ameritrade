@@ -1,6 +1,17 @@
 === CHANGES: ameritrade ===
 
 
+2018-08-24
+
+  - Added example script to cancel all orders and implemented DELETE method.
+
+  - Added readonly to scriptgs.open_with_dirs() function.
+
+  - Added example script calculating various probability estimates.
+
+  - Updated strangle options strategy example.
+
+
 2018-08-22
 
   - Added a simple README file.

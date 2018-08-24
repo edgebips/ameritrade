@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Quotes for simple daily short strangle options strategy.
+
+Note: For a similar free source of data, you could also use this:
+https://query1.finance.yahoo.com/v7/finance/options/SPY
 """
 __author__ = 'Martin Blais <blais@furius.ca>'
 
