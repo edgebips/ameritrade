@@ -53,6 +53,12 @@ def test_secrets(secrets) -> bool:
 
 def authenticate(config) -> Dict[str, str]:
     """Start an HTTP server and open a browser window to OAuth authenticate."""
+
+    if not path.exists(config.key_file):
+        raise OSError("FileNotFoundError: {}".format(config.key_file))
+    if not path.exists(config.certificate_file):
+        raise OSError("FileNotFoundError: {}".format(config.certificate_file))
+
     open_auth_browser(config)
     return gather_token(config)
 

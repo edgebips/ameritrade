@@ -3,6 +3,8 @@
 
 2018-08-24
 
+  - Added early check for existence of key/certificate files.
+
   - Added example script to cancel all orders and implemented DELETE method.
 
   - Added readonly to scriptgs.open_with_dirs() function.
