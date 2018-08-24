@@ -11,6 +11,7 @@ import argparse
 import datetime
 import logging
 import math
+import re
 
 import numpy
 
@@ -89,11 +90,12 @@ def get_candidates(chain, args):
 
 
 def main():
+    logging.basicConfig(level=logging.INFO, format='%(levelname)-8s: %(message)s')
     parser = argparse.ArgumentParser(description=__doc__.strip())
     ameritrade.add_script_args(parser)
 
     parser.add_argument('-s', '--underlying', '--stock', action='store',
-                        default='$SPX.X',
+                        default='$XSP.X',  # E-mini S&P 500 Futures
                         help="Name of the underlying to use.")
 
     parser.add_argument('-v', '--volatility', '--vol', action='store', type=float,
@@ -108,9 +110,11 @@ def main():
                         help=("Fixed (over time) minimum margin (in pct) away from "
                               "the underlying."))
 
+    parser.add_argument('-f', '--filter', action='store',
+                        help="Filter on the description field (for Weekly or Monthly)")
+
     args = parser.parse_args()
     api = ameritrade.open_with_args(args)
-
     # Fetch call chain.
     fromDate = datetime.date.today() + datetime.timedelta(days=5)
     toDate = datetime.date.today() + datetime.timedelta(days=45)
@@ -122,8 +126,11 @@ def main():
         return
 
     tbl = get_candidates(chain, args)
-    print(tbl)
+    if args.filter:
+        tbl = tbl.filter(lambda row: re.search(args.filter, row.description))
 
+    print('Options for {}: {}'.format(chain['symbol'], chain['underlyingPrice']))
+    print(tbl)
 
 
 if __name__ == '__main__':
