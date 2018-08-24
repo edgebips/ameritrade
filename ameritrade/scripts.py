@@ -38,7 +38,7 @@ def add_args(parser):
     parser.add_argument('--ameritrade-clear-cache', action='store_true',
                         help='Clear the cache before running.')
 
-def open_with_args(args):
+def open_with_args(args, readonly: bool = True):
     """Create the API with the script arguments."""
 
     # Optionally clear the cache before running.
@@ -54,4 +54,5 @@ def open_with_args(args):
         client_id=args.ameritrade_client_id,
         redirect_uri='https://localhost:8444',
         config_dir=args.ameritrade_config_dir,
-        cache=args.ameritrade_cache_dir if args.ameritrade_cache else None)
+        cache=args.ameritrade_cache_dir if args.ameritrade_cache else None,
+        readonly=readonly)

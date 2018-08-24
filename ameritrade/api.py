@@ -154,10 +154,13 @@ class CallableMethod:
         params = {key: str(value) for key, value in kw.items()}
         if self.method.http_method == 'GET':
             resp = requests.get(url, params=params, headers=headers)
+            return resp.json()
+        elif self.method.http_method == 'DELETE':
+            resp = requests.delete(url, params=params, headers=headers)
+            return resp.text
         else:
             assert False, "Unsupported HTTP method for {}: {}".format(method.name,
                                                                       method.http_method)
-        return resp.json()
 
 
 class CachedMethod:
