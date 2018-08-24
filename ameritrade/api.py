@@ -5,48 +5,18 @@ __license__ = "GNU GPLv2"
 
 from os import path
 from typing import Tuple, Dict, NamedTuple
+import builtins
+import hashlib
+import json
 import logging
 import os
+import pickle
 import pprint
 import re
 import requests
 
 from ameritrade import auth
 from ameritrade import schema
-
-
-def open(client_id: str,
-         redirect_uri: str = 'https://localhost:8444',
-         key_file: str = None,
-         certificate_file: str = None,
-         timeout: int = 300,
-         secrets_file: str = None,
-         readonly: bool = True):
-    """Create an API endpoint. This is the main entry point."""
-    config = Config(client_id,
-                    redirect_uri,
-                    key_file,
-                    certificate_file,
-                    timeout,
-                    secrets_file,
-                    readonly)
-    return AmeritradeAPI(config)
-
-
-def open_with_dir(client_id: str,
-                  config_dir: str = os.getcwd(),
-                  redirect_uri: str = 'https://localhost:8444',
-                  timeout: int = 300,
-                  readonly: bool = True):
-    """Create an API endpoint with a config dfir. This is the main entry point."""
-    config = Config(client_id,
-                    redirect_uri,
-                    path.join(config_dir, 'key.pem'),
-                    path.join(config_dir, 'certificate.pem'),
-                    timeout,
-                    path.join(config_dir, 'secrets.json'),
-                    readonly)
-    return AmeritradeAPI(config)
 
 
 # Configuration object. Create one of those and call AmeritradeAPI().
@@ -75,7 +45,55 @@ Config = NamedTuple('Config', [
     # Safe-mode that disallows any methods that modify state. Only allows
     # getters to read data from the account.
     ('readonly', bool),
+
+    # Cache: If non-null, all calls are cached to files and the cache is
+    # consulted and returned if present before making new calls. This is
+    # intended to be used during development of scripts in order to avoid
+    # hitting the API so much while iterating over code. The cache is indexed by
+    # method name and set of arguments. Don't use this normally, just when
+    # developing or debugging, to minimize API calls and reduce turnaround time.
+    # Cache hit/misses are logged to INFO level.
+    ('cache', str),
     ])
+
+
+def open(client_id: str,
+         redirect_uri: str = 'https://localhost:8444',
+         key_file: str = None,
+         certificate_file: str = None,
+         timeout: int = 300,
+         secrets_file: str = None,
+         readonly: bool = True,
+         cache: str = None):
+    """Create an API endpoint. This is the main entry point."""
+    config = Config(client_id,
+                    redirect_uri,
+                    key_file,
+                    certificate_file,
+                    timeout,
+                    secrets_file,
+                    readonly,
+                    cache)
+    return AmeritradeAPI(config)
+
+
+def open_with_dir(client_id: str,
+                  config_dir: str = os.getcwd(),
+                  redirect_uri: str = 'https://localhost:8444',
+                  timeout: int = 300,
+                  readonly: bool = True,
+                  cache: str = None):
+    """Create an API endpoint with a config dfir. This is the main entry point."""
+    config = Config(client_id,
+                    redirect_uri,
+                    path.join(config_dir, 'key.pem'),
+                    path.join(config_dir, 'certificate.pem'),
+                    timeout,
+                    path.join(config_dir, 'secrets.json'),
+                    readonly,
+                    cache)
+    return AmeritradeAPI(config)
+
 
 # A dict of secrets. Contains the access token and Bearer type.
 Secrets = Dict[str, str]
@@ -98,7 +116,10 @@ class AmeritradeAPI:
             raise NameError("Method {} is not allowed in safe read-only mode.".format(
                 method.name))
         else:
-            return CallableMethod(method, object.__getattribute__(self, 'secrets'))
+            method = CallableMethod(method, object.__getattribute__(self, 'secrets'))
+            if config.cache:
+                method = CachedMethod(config.cache, key, method)
+            return method
 
 
 class CallableMethod:
@@ -137,3 +158,38 @@ class CallableMethod:
             assert False, "Unsupported HTTP method for {}: {}".format(method.name,
                                                                       method.http_method)
         return resp.json()
+
+
+class CachedMethod:
+    """A caching proxy for any callable methods."""
+
+    def __init__(self, cache_dir, method_name, method):
+        self.cache_dir = cache_dir
+        self.method_name = method_name
+        self.method = method
+
+    def __call__(self, **kw):
+        # Ensure the cache directory exists the first time a method is called.
+        if not path.exists(self.cache_dir):
+            os.makedirs(self.cache_dir)
+
+        # Compute unique method call hash.
+        md5 = hashlib.md5()
+        keyobj = (self.method_name, sorted(kw.items()))
+        md5.update(pickle.dumps(keyobj))
+        digest = md5.hexdigest()
+
+        # Test the cache.
+        cache_path = path.join(self.cache_dir, digest)
+        if path.exists(cache_path):
+            # Cache hit.
+            logging.info("Cache hit for call to %s", self.method_name)
+            with builtins.open(cache_path, 'r') as infile:
+                return json.load(infile)
+        else:
+            # Cache miss.
+            logging.info("Cache miss for call to %s", self.method_name)
+            response = self.method(**kw)
+            with builtins.open(cache_path, 'w') as infile:
+                json.dump(response, infile)
+            return response
