@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 """Test client program for the Ameritrade API.
-
-Set AMERITRADE_API_DIR to a private directory where your secrets will be stored.
-Also, generate the required SSL certificates there.
 """
 __author__ = 'Martin Blais <blais@furius.ca>'
 

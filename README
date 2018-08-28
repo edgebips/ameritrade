@@ -22,8 +22,9 @@ https://developer.tdameritrade.com/content/web-server-authentication-python-3
    $ cd /path/to/encrypted/directory
    $ openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 365 -out certificate.pem
 
-Then from Python:
+Then from Python::
 
+   import argparse
    import ameritrade
 
    def main():
@@ -32,3 +33,5 @@ Then from Python:
      args = parser.parse_args()
      api = ameritrade.open_with_args(args)
      ...
+
+See `examples/minimal.py` for an example.

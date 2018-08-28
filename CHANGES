@@ -1,6 +1,11 @@
 === CHANGES: ameritrade ===
 
 
+2018-08-27
+
+  - Added minimal example client program.
+
+
 2018-08-24
 
   - Added early check for existence of key/certificate files.
