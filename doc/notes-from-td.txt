@@ -1,0 +1,57 @@
+(Q&A w/ TD API PM, from August 2018)
+
+--------------------------------------------------------------------------------
+
+Q. The timeout is pretty short, I’m typing my password all day long it seems. Is
+   there a way to increase the timeout?
+
+A. The time out setting is associated with the Time Out setting through
+   www.TDAmeritrade.com -> Client Services tab -> General. Also, throughout the
+   App, you should be able to generate access_tokens with your existing
+   refresh_token. Refresh tokens are valid for 90 days. They are used to
+   generate access tokens which are valid for 30 minutes. After that 30 minutes
+   is up, you will need to generate another access token, but there should not
+   be a need to log in with your TD Ameritrade information because you already
+   have an access token.
+
+--------------------------------------------------------------------------------
+
+Q. I wrote Python bindings to your API. I’d like to auto-generate them. Some of
+   the responses in your documentation pages already appear to have a
+   description of the schema for responses in JSON. Do you have a file that
+   describes the schema of your entire API, including the input functions? Can
+   you share it?
+
+A. This is something we are putting together, but do not have an ETA at this
+   time on when that will be finished. What were some of the questions you had
+   around it?
+
+R. I wrote the schema in code like this:
+   https://bitbucket.org/blais/ameritrade/src/tip/ameritrade/schema.py
+   Ideally this would not be necessary and the method parsers be auto-generated
+   from your schema file. (When you update the API, the bindings would just get
+   updated from a new schema file version automatically.) Moreover, I could
+   verify the validity of all the input value strings themselves if I had the
+   full schema. I might even generate a protocol buffer translation layer if I
+   had it, so I could use it consistently from any language. That's all.
+
+--------------------------------------------------------------------------------
+
+Q. The API page does not require security questions (like the regular website
+   does). Are you planning to let users upload / install a required certificate
+   in order to increase the security of this API?
+
+A. 2 factor authentication is something we will be adding across our API. This
+   was recently added to the thinkorswim platform and our mobile platforms.
+
+--------------------------------------------------------------------------------
+
+Q. Adding an API to download the list of each ETF holdings would be a nice
+   add-on to the service. If you have a normalized feed of this information
+   within. (I had to build a hodgepodge project elsewhere to do this so far.)
+
+A. The workaround for this is to use the public list we have within the
+   thinkorswim platform. This is housed inside thinkorswim so you can not use
+   the API to reference this list. You can export and import the list again into
+   a personal list. Once done, you will be able to access it with your app
+   through the watchlist api.
