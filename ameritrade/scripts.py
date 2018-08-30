@@ -42,7 +42,7 @@ def open_with_args(args, readonly: bool = True):
     """Create the API with the script arguments."""
 
     # Optionally clear the cache before running.
-    if args.ameritrade_cache and args.ameritrade_clear_cache and args.ameritrade_cache_dir:
+    if args.ameritrade_clear_cache and args.ameritrade_cache_dir:
         # Clear just the filenames that look like MD5 hashes.
         cache_dir = args.ameritrade_cache_dir
         for filename in os.listdir(cache_dir):

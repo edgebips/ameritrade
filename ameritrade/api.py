@@ -54,6 +54,7 @@ Config = NamedTuple('Config', [
     # developing or debugging, to minimize API calls and reduce turnaround time.
     # Cache hit/misses are logged to INFO level.
     ('cache', str),
+
     ])
 
 
@@ -132,6 +133,9 @@ class CallableMethod:
     def __call__(self, **kw):
         method = self.method
 
+        # Remove values which are None.
+        kw = {key: value for key, value in kw.items() if value is not None}
+
         # Check that all the required fields are being provided.
         provided_fields = set(kw.keys())
         uncovered_fields = method.required_fields - provided_fields
@@ -175,6 +179,9 @@ class CachedMethod:
         # Ensure the cache directory exists the first time a method is called.
         if not path.exists(self.cache_dir):
             os.makedirs(self.cache_dir)
+
+        # Remove values which are None.
+        kw = {key: value for key, value in kw.items() if value is not None}
 
         # Compute unique method call hash.
         md5 = hashlib.md5()
