@@ -1,6 +1,11 @@
 === CHANGES: ameritrade ===
 
 
+2018-09-03
+
+  - Added options symbol parsing support.
+
+
 2018-08-30
 
   - Fixed bug with passing in kw args with value None, which should always be

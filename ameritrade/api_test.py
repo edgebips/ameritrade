@@ -1,4 +1,6 @@
 """Unit tests for API."""
+__author__ = 'Martin Blais <blais@furius.ca>'
+__license__ = "GNU GPLv2"
 
 from unittest import mock
 import pytest
