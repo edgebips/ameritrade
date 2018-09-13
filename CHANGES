@@ -1,6 +1,11 @@
 === CHANGES: ameritrade ===
 
 
+2018-09-13
+
+  - Added a function to convert from an Option object to an Ameritrade option symbol.
+
+
 2018-09-03
 
   - Added options symbol parsing support.

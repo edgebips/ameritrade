@@ -31,6 +31,14 @@ def ParseOptionSymbol(string: str) -> Option:
     return Option(symbol, expiration, strike, side)
 
 
+def MakeOptionSymbol(opt: Option) -> str:
+    """Build an option symbol given an option."""
+    return '{}_{:%m%d%y}{}{}'.format(opt.symbol,
+                                     opt.expiration,
+                                     opt.side[0].upper(),
+                                     opt.strike)
+
+
 _CALLS = [(chr(ord('A') + i), ('C', i+1)) for i in range(0, 12)]
 _PUTS  = [(chr(ord('M') + i), ('P', i+1)) for i in range(0, 12)]
 _MONTHSIDEMAP = dict(_CALLS + _PUTS)
