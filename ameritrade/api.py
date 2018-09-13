@@ -11,7 +11,7 @@ import json
 import logging
 import os
 import pickle
-import pprint
+from pprint import pprint
 import re
 import requests
 
@@ -55,6 +55,8 @@ Config = NamedTuple('Config', [
     # Cache hit/misses are logged to INFO level.
     ('cache', str),
 
+    # Enable debug traces.
+    ('debug', bool),
     ])
 
 
@@ -65,7 +67,8 @@ def open(client_id: str,
          timeout: int = 300,
          secrets_file: str = None,
          readonly: bool = True,
-         cache: str = None):
+         cache: str = None,
+         debug: bool = False):
     """Create an API endpoint. This is the main entry point."""
     config = Config(client_id,
                     redirect_uri,
@@ -74,7 +77,8 @@ def open(client_id: str,
                     timeout,
                     secrets_file,
                     readonly,
-                    cache)
+                    cache,
+                    debug)
     return AmeritradeAPI(config)
 
 
@@ -83,7 +87,8 @@ def open_with_dir(client_id: str,
                   redirect_uri: str = 'https://localhost:8444',
                   timeout: int = 300,
                   readonly: bool = True,
-                  cache: str = None):
+                  cache: str = None,
+                  debug: bool = False):
     """Create an API endpoint with a config dfir. This is the main entry point."""
     config = Config(client_id,
                     redirect_uri,
@@ -92,7 +97,8 @@ def open_with_dir(client_id: str,
                     timeout,
                     path.join(config_dir, 'secrets.json'),
                     readonly,
-                    cache)
+                    cache,
+                    debug)
     return AmeritradeAPI(config)
 
 
@@ -117,18 +123,21 @@ class AmeritradeAPI:
             raise NameError("Method {} is not allowed in safe read-only mode.".format(
                 method.name))
         else:
-            method = CallableMethod(method, object.__getattribute__(self, 'secrets'))
+            method = CallableMethod(method,
+                                    object.__getattribute__(self, 'secrets'),
+                                    config.debug)
             if config.cache:
-                method = CachedMethod(config.cache, key, method)
+                method = CachedMethod(config.cache, key, method, config.debug)
             return method
 
 
 class CallableMethod:
     """Callable method."""
 
-    def __init__(self, method: schema.PreparedMethod, secrets: Secrets):
+    def __init__(self, method: schema.PreparedMethod, secrets: Secrets, debug: bool):
         self.method = method
         self.secrets = secrets
+        self.debug = debug
 
     def __call__(self, **kw):
         method = self.method
@@ -147,6 +156,16 @@ class CallableMethod:
         if invalid_fields:
             raise TypeError("Invalid fields: {}".format(invalid_fields))
 
+        # Run the validations if there are any.
+        fieldmap = {field.name: field for field in method.fields}
+        for fname, value in kw.items():
+            field = fieldmap[fname]
+            if field.validator is None:
+                continue
+            exc = field.validator(value)
+            if exc:
+                raise exc
+
         # Build the headers and URL path to call.
         headers = auth.get_headers(self.secrets)
         path_kw = {field: kw.pop(field) for field in method.url_fields}
@@ -162,6 +181,10 @@ class CallableMethod:
         elif self.method.http_method == 'DELETE':
             resp = requests.delete(url, params=params, headers=headers)
             return resp.text
+        elif self.method.http_method == 'POST':
+            headers['Content-Type'] = 'application/json'
+            resp = requests.post(url, json=kw['payload'], headers=headers)
+            return resp.text
         else:
             assert False, "Unsupported HTTP method for {}: {}".format(method.name,
                                                                       method.http_method)
@@ -170,10 +193,11 @@ class CallableMethod:
 class CachedMethod:
     """A caching proxy for any callable methods."""
 
-    def __init__(self, cache_dir, method_name, method):
+    def __init__(self, cache_dir, method_name, method, debug):
         self.cache_dir = cache_dir
         self.method_name = method_name
         self.method = method
+        self.debug = debug
 
     def __call__(self, **kw):
         # Ensure the cache directory exists the first time a method is called.

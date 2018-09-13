@@ -1,8 +1,19 @@
+TODO:
+
 - Consider merging AMERTRADE_CONFIG_DIR to ~/.ameritrade and make a client_id
-  file in there.
+  file in there and all certificate files in there.
+
+- Add support for PUT and PATCH methods.
+
 - Add argument data types and check them.
-- Add support for POST, DELETE, PUT and PATCH methods.
+
 - Post a clear instructions on how to create a self-signed certificate with
-  correct paths.
+  correct paths, maybe make this automatic even, providing a script that will
+  run the commands for you.
+
 - Download return value schemas and integrate them.
+
 - Support positional arguments.
+
+- Implement unit tests for schema validation, and perhaps move some of it to a
+  dedicated module.

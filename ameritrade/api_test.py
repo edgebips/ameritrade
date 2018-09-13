@@ -8,10 +8,15 @@ import pytest
 from ameritrade import schema
 from ameritrade import api
 
+def open_for_test():
+    """Create an API endpoint. This is the main entry point."""
+    return api.open('TEST@AMER.OAUTHAP')
+
+
 @mock.patch('ameritrade.auth.get_headers')
 @mock.patch('requests.get')
 def test_get(_, reqget):
-    method = api.CallableMethod(schema.SCHEMA['GetMovers'], object())
+    method = api.CallableMethod(schema.SCHEMA['GetMovers'], object(), False)
 
     # Missing a required field.
     with pytest.raises(TypeError):
@@ -36,9 +41,9 @@ def test_get(_, reqget):
 
 
 @mock.patch('ameritrade.auth.get_headers')
+@mock.patch('ameritrade.auth.read_or_create_secrets')
 @mock.patch('requests.get')
-def test_readonly(_, reqget):
-    method = api.CallableMethod(schema.SCHEMA['CancelOrder'], object())
-
+def test_readonly(_, __, ___):
+    iapi = open_for_test()
     with pytest.raises(NameError):
-        method(accountId='accountId', orderId='orderId')
+        iapi.ReplaceSavedOrder(accountId='accountId', savedOrderId='savedOrderId', payload={})

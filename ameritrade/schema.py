@@ -3,8 +3,11 @@
 __author__ = 'Martin Blais <blais@furius.ca>'
 __license__ = "GNU GPLv2"
 
-import re
+from os import path
+from pprint import pprint
 from typing import NamedTuple, Set
+import json
+import re
 
 
 Method = NamedTuple('Method', [
@@ -29,6 +32,7 @@ Arg = NamedTuple('Arg', [
     ('name', str),
     ('required', bool),
     ('urlarg', bool),
+    ('validator', object),
 ])
 
 def prepare(method):
@@ -49,10 +53,153 @@ def prepare(method):
                           url_fields,
                           required_fields)
 
+def _get_validator(name, validator):
+    return (validator
+            if validator is not None
+            else _VALIDATORS_BY_NAME.get(name, None))
+
 def M(name, description, http_method, path, *fields):
     return Method(name, description, http_method, path, fields)
-def R(name): return Arg(name, True, False)
-def O(name): return Arg(name, False, False)
+def R(name, validator=None):
+    return Arg(name, True, False, _get_validator(name, validator))
+def O(name, validator=None):
+    return Arg(name, False, False, _get_validator(name, validator))
+
+
+def TypeValidator(typeobj):
+    """Validate just the data type, not the values."""
+    def validator(value):
+        if not isinstance(value, typeobj):
+            raise ValueError("Invalid type: {} should be of type {}".format(
+                repr(value), typeobj))
+    return validator
+
+
+
+
+
+
+
+# FIXME: TODO - move all this to another module.
+
+def JsonSchemaValidator(message_name):
+    """Read a JSON schema as provide by the API docs and validate."""
+    filename = path.join(_SCHEMA_DIR, '{}.json'.format(message_name))
+    schemas = load_json_with_comments(filename)
+    top_schema = {"type": "object",
+                  "properties": schemas[message_name]}
+    def validator(value):
+        return validate_json_object(top_schema, value, schemas)
+    return validator
+
+
+def load_json_with_comments(filename):
+    with open(filename) as schfile:
+        contents = re.sub(r'//.*', '', schfile.read())
+        #contents = re.sub('^[ \t]*\r?\n', '', contents, re.M)
+        return json.loads(contents.strip())
+
+
+def dispatch_validate(value_schema, value, schemas):
+    value_type = value_schema['type']
+    validfunc = _TYPE_VALIDATORS[value_type]
+    return validfunc(value_schema, value, schemas)
+
+
+def validate_json_object(schema, value, schemas):
+    """Validate a JSON object."""
+    assert set(schema.keys()) in ({'type', 'properties'},
+                                  {'type', 'properties', 'discriminator'})
+    properties = schema['properties']
+    discriminator = schema.get('discriminator', None)
+    if discriminator:
+        disc_value = value[discriminator]
+        disc_schema = properties[discriminator]
+        assert disc_schema.keys() == {'type', 'enum'}
+        validate_json_string(disc_schema, disc_value, schemas)
+        schema_key = '{}_{}'.format(discriminator, disc_value)
+        properties = schemas[schema_key]
+
+    assert isinstance(properties, dict)
+    for key, value in value.items():
+        value_schema = properties[key]
+        dispatch_validate(value_schema, value, schemas)
+
+
+def validate_json_array(schema, value, schemas):
+    """Validate a JSON array."""
+    #print('validate_json_array', schema, value)
+    assert set(schema.keys()) == {'type', 'items'}
+    if not isinstance(value, list):
+        raise TypeError("Invalid type for array: {}".foramt(value))
+    item_schema = schema['items']
+    for item in value:
+        dispatch_validate(item_schema, item, schemas)
+
+
+def validate_json_boolean(schema, value, schemas):
+    """Validate a JSON boolean."""
+    #print('validate_json_boolean')
+    raise NotImplementedError
+
+
+def validate_json_integer(schema, value, schemas):
+    """Validate a JSON integer."""
+    #print('validate_json_integer')
+    raise NotImplementedError
+
+
+def validate_json_number(schema, value, schemas):
+    """Validate a JSON number."""
+    #print('validate_json_number', schema, value)
+    assert set(schema.keys()) == {'type', 'format'}
+    if schema['format'] == 'double':
+        if isinstance(value, (float, int)):
+            pass
+        elif isinstance(value, str):
+            float(value)
+        else:
+            raise TypeError("Invalid format for {}: {}".format(value, schema['format']))
+    else:
+        raise ValueError("Invalid number format: {}".format(schema['format']))
+
+
+def validate_json_string(schema, value, schemas):
+    """Validate a JSON string."""
+    #print('validate_json_string', schema, value)
+    assert set(schema.keys()) in ({'type'}, {'type', 'enum'})
+    enum = schema.get('enum', None)
+    if enum:
+        assert isinstance(enum, list)
+        if value not in enum:
+            raise ValueError("Invalid enumeration: {}".format(value))
+
+
+_TYPE_VALIDATORS = {
+    "array"   : validate_json_array,
+    "boolean" : validate_json_boolean,
+    "integer" : validate_json_integer,
+    "number"  : validate_json_number,
+    "object"  : validate_json_object,
+    "string"  : validate_json_string,
+}
+
+
+
+
+
+
+
+
+
+
+
+
+_VALIDATORS_BY_NAME = {
+    'accountId': TypeValidator(str)
+}
+
+_SCHEMA_DIR = path.join(path.dirname(__file__), 'schemas')
 
 
 _METHODS = [
@@ -70,7 +217,7 @@ _METHODS = [
     M('GetOrdersByPath',
       'Orders for a specific account.',
       'GET', '/accounts/{accountId}/orders',
-      R('accountId'),
+      R('accountId', str),
       R('orderId'),
       O('maxResults'),
       O('fromEnteredTime'),
@@ -89,20 +236,22 @@ _METHODS = [
     M('PlaceOrder',
       'Place an order for a specific account.',
       'POST', '/accounts/{accountId}/orders',
-      R('accountId')),  # INCOMPLETE
+      R('accountId'),
+      R('payload', JsonSchemaValidator('PlaceOrder'))),
     M('ReplaceOrder',
       ("Replace an existing order for an account. The existing order will be replaced by "
        "the new order. Once replaced, the old order will be canceled and a new order will "
        "be created."),
       'PUT', '/accounts/{accountId}/orders/{orderId}',
       R('accountId'),
-      R('orderId')),  # INCOMPLETE
-
+      R('orderId'),
+      R('payload', JsonSchemaValidator('ReplaceOrder'))),
     # Accounts and Trading > Saved Orders.
     M('CreateSavedOrder',
       'Save an order for a specific account.',
       'POST', '/accounts/{accountId}/savedorders',
-      R('accountId')),  # INCOMPLETE
+      R('accountId'),
+      R('payload', JsonSchemaValidator('CreateSavedOrder'))),
     M('DeleteSavedOrder',
       'Delete a specific saved order for a specific account.',
       'DELETE', '/accounts/{accountId}/savedorders/{savedOrderId}',
@@ -117,12 +266,13 @@ _METHODS = [
       'Saved orders for a specific account.',
       'GET', '/accounts/{accountId}/savedorders',
       R('accountId')),  # INCOMPLETE
-    M('Replace Saved Order',
+    M('ReplaceSavedOrder',
       ("Replace an existing saved order for an account. The existing saved order will "
        "be replaced by the new order."),
       'PUT', '/accounts/{accountId}/savedorders/{savedOrderId}',
       R('accountId'),
-      R('savedOrderId')),  # INCOMPLETE
+      R('savedOrderId'),
+      R('payload', JsonSchemaValidator('ReplaceSavedOrder'))),
 
     # Accounts and Trading > Accounts.
     M('GetAccount',
@@ -256,37 +406,36 @@ _METHODS = [
        "or asset type are valid."),
       'POST', '/accounts/{accountId}/watchlists',
       R('accountId')),  # INCOMPLETE
-    M('Delete Watchlist',
+    M('DeleteWatchlist',
       "Delete watchlist for a specific account.",
       'DELETE', '/accounts/{accountId}/watchlists/{watchlistId}',
       R('accountId'),
       R('watchlistId')),  # INCOMPLETE
-    M('Get Watchlist',
+    M('GetWatchlist',
       "Specific watchlist for a specific account.",
       'GET', '/accounts/{accountId}/watchlists/{watchlistId}',
       R('accountId'),
       R('watchlistId')),  # INCOMPLETE
-    M('Get Watchlists for Multiple Accounts',
+    M('GetWatchlistsForMultipleAccounts',
       "All watchlists for all of the user's linked accounts.",
       'GET', '/accounts/watchlists'),  # INCOMPLETE
-    M('Get Watchlists for Single Account',
+    M('GetWatchlistsForSingleAccount',
       "All watchlists of an account.",
       'GET', '/accounts/{accountId}/watchlists',
       R('accountId')),  # INCOMPLETE
-    M('Replace Watchlist',
+    M('ReplaceWatchlist',
       ("Replace watchlist for a specific account. This method does not verify that the "
        "symbol or asset type are valid."),
       'PUT', '/accounts/{accountId}/watchlists/{watchlistId}',
       R('accountId'),
       R('watchlistId')),  # INCOMPLETE
-    M('Update Watchlist',
+    M('UpdateWatchlist',
       ("Partially update watchlist for a specific account: change watchlist name, add to "
        "the beginning/end of a watchlist, update or delete items in a watchlist. This "
        "method does not verify that the symbol or asset type are valid."),
       'PATCH', '/accounts/{accountId}/watchlists/{watchlistId}',
       R('accountId'),
       R('watchlistId')),  # INCOMPLETE
-
 ]
 
 SCHEMA = {method.name: prepare(method) for method in _METHODS}

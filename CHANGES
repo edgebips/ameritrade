@@ -3,6 +3,14 @@
 
 2018-09-13
 
+  - Added input schema validation for POST methods. The argument is called
+    'payload' and is directly validated against the schemas provided by the API
+    documentation.
+
+  - Implemented POST method.
+
+  - Implemented debug option in configuration.
+
   - Implemented automatic support for reusing the refresh token. This
     significantly extends the duration of valid login credentials.
 
