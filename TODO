@@ -1,5 +1,5 @@
-- Use the refresh token regularly in order to avoid timing out. Do this
-  automatically.
+- Consider merging AMERTRADE_CONFIG_DIR to ~/.ameritrade and make a client_id
+  file in there.
 - Add argument data types and check them.
 - Add support for POST, DELETE, PUT and PATCH methods.
 - Post a clear instructions on how to create a self-signed certificate with

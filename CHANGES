@@ -3,6 +3,9 @@
 
 2018-09-13
 
+  - Implemented automatic support for reusing the refresh token. This
+    significantly extends the duration of valid login credentials.
+
   - Added a function to convert from an Option object to an Ameritrade option symbol.
 
 

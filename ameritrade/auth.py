@@ -27,11 +27,24 @@ def read_or_create_secrets(secrets_file: str, config):
         if path.exists(secrets_file):
             with open(secrets_file) as infile:
                 secrets = json.load(infile)
+
             # Automatically re-authenticate if the token is expired.
             if test_secrets(secrets):
                 return secrets
             else:
-                logging.warning("Secrets expired or invalid; authenticating.")
+                logging.warning("Secrets expired or invalid; refreshing.")
+
+                # Attempt to generate a refresh token.
+                secrets = refresh_token(config.client_id, secrets["refresh_token"])
+                if (isinstance(secrets, dict) and
+                    'access_token' in secrets and
+                    'refresh_token' in secrets):
+                    # Success; Override the secrets and return.
+                    with open(secrets_file, 'w') as outfile:
+                        json.dump(secrets, outfile)
+                    return secrets
+                else:
+                    logging.warning("Could not refresh access token; authenticating.")
 
         # We have to authenticate.
         secrets = authenticate(config)
@@ -99,6 +112,25 @@ def gather_token(config):
         thread.join()
 
     return server.secrets
+
+
+def refresh_token(client_id, token):
+    """Attempt to refresh the token.
+
+    Args:
+      client_id: The client id.
+      token: The refresh token.
+    """
+    # Post access token request.
+    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+    data = {'grant_type': 'refresh_token',
+            'refresh_token': token,
+            'access_type': 'offline',
+            'client_id': client_id}
+    resp = requests.post('https://api.tdameritrade.com/v1/oauth2/token',
+                         data=data,
+                         headers=headers)
+    return resp.json()
 
 
 class HTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
