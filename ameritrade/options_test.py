@@ -37,10 +37,14 @@ def test_parse_option_symbol():
     for symbol, _, opt in _TESTDATA:
         assert opt == options.ParseOptionSymbol(symbol)
 
+def test_make_option_symbol():
+    for symbol, _, opt in _TESTDATA:
+        assert options.MakeOptionSymbol(opt) == symbol
+
 def test_parse_option_cusip():
     for _, cusip, opt in _TESTDATA:
         assert opt == options.ParseOptionCusip(cusip)
 
-def test_make_option_symbol():
-    for symbol, _, opt in _TESTDATA:
-        assert options.MakeOptionSymbol(opt) == symbol
+def test_make_option_cusip():
+    for _, cusip, opt in _TESTDATA:
+        assert options.MakeOptionCusip(opt) == cusip

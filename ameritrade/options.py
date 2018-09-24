@@ -6,6 +6,7 @@ __license__ = "GNU GPLv2"
 from decimal import Decimal
 import collections
 import datetime
+import re
 import typing
 
 
@@ -24,9 +25,17 @@ def ParseOptionSymbol(string: str) -> Option:
 
     The argument is a symbol like 'SPY_081718C290' or 'HDV_021618C88'.
     """
+    if '_' not in string:
+        raise ValueError("Invalid Ameritrade symbol: '{}'".format(string))
     symbol, _, rest = string.partition('_')
+    if not re.match('\d+$', rest[0:6]):
+        raise ValueError("Invalid Ameritrade symbol: '{}'".format(string))
     expiration = datetime.datetime.strptime(rest[0:6], '%m%d%y').date()
     side = rest[6]
+    if side not in {'C', 'P'}:
+        raise ValueError("Invalid Ameritrade symbol: '{}'".format(string))
+    if not re.match('\d+$', rest[7:]):
+        raise ValueError("Invalid Ameritrade symbol: '{}'".format(string))
     strike = Decimal(rest[7:])
     return Option(symbol, expiration, strike, side)
 
@@ -42,6 +51,7 @@ def MakeOptionSymbol(opt: Option) -> str:
 _CALLS = [(chr(ord('A') + i), ('C', i+1)) for i in range(0, 12)]
 _PUTS  = [(chr(ord('M') + i), ('P', i+1)) for i in range(0, 12)]
 _MONTHSIDEMAP = dict(_CALLS + _PUTS)
+_MONTHSIDEMAPINV = {key: value for value, key in _MONTHSIDEMAP.items()}
 
 _DAYMAP = '_123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -51,8 +61,8 @@ def ParseOptionCusip(string):
 
     The argument is a cusip like '0SPY..HH80290000' or '0HDV..BG80088000'.
     """
-    assert len(string) == 16
-    assert string[0] == '0'
+    if len(string) != 16 or string[0] != '0':
+        raise ValueError("Invalid CUSIP: '{}'".format(string))
     symbol = string[1:6].strip('.')
 
     # Compute month and side together
@@ -71,7 +81,20 @@ def ParseOptionCusip(string):
     year = yearbase + yearchar
 
     expiration = datetime.date(year, month, day)
-    assert string[9] == '0'
+    if string[9] != '0':
+        raise ValueError("Invalid CUSIP: '{}'".format(string))
 
+    if not re.match('\d+$', string[10:16]):
+        raise ValueError("Invalid CUSIP: '{}'".format(string))
     strike = Decimal(string[10:16])/1000
     return Option(symbol, expiration, strike, side)
+
+
+def MakeOptionCusip(opt: Option) -> str:
+    """Build a CUSIP given an option."""
+    key = (opt.side[0], opt.expiration.month)
+    monthside_letter=  _MONTHSIDEMAPINV[key]
+    day_letter = _DAYMAP[opt.expiration.day]
+    year_char = opt.expiration.year % 10
+    strike = int(opt.strike * 1000)
+    return '0{:.<5}{}{}{}0{:06d}'.format(opt.symbol, monthside_letter, day_letter, year_char, strike)

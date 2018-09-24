@@ -1,6 +1,11 @@
 === CHANGES: ameritrade ===
 
 
+2018-09-24
+
+  - Added function to build a CUSIP given an Option.
+
+
 2018-09-13
 
   - Added input schema validation for POST methods. The argument is called
