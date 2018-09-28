@@ -39,7 +39,10 @@ def add_args(parser):
                         help='Clear the cache before running.')
 
 
-def open_with_args(args, readonly: bool = True, debug: bool = False):
+def open_with_args(args,
+                   readonly: bool = True,
+                   lazy: bool = False,
+                   debug: bool = False):
     """Create the API with the script arguments."""
 
     # Optionally clear the cache before running.
@@ -57,4 +60,5 @@ def open_with_args(args, readonly: bool = True, debug: bool = False):
         config_dir=args.ameritrade_config_dir,
         cache=args.ameritrade_cache_dir if args.ameritrade_cache else None,
         readonly=readonly,
+        lazy=lazy,
         debug=debug)

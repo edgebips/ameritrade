@@ -1,5 +1,11 @@
 === CHANGES: ameritrade ===
 
+2018-09-28
+
+  - Added lazy option to the API in order to take full advantage of the cache
+    while developing, and not even having to reconnect if everything requested
+    has been cached.
+
 
 2018-09-24
 

@@ -55,6 +55,9 @@ Config = NamedTuple('Config', [
     # Cache hit/misses are logged to INFO level.
     ('cache', str),
 
+    # Authenticate or refresh secrets lazily, upon first attribute access.
+    ('lazy', bool),
+
     # Enable debug traces.
     ('debug', bool),
     ])
@@ -68,6 +71,7 @@ def open(client_id: str,
          secrets_file: str = None,
          readonly: bool = True,
          cache: str = None,
+         lazy: bool = False,
          debug: bool = False):
     """Create an API endpoint. This is the main entry point."""
     config = Config(client_id,
@@ -78,6 +82,7 @@ def open(client_id: str,
                     secrets_file,
                     readonly,
                     cache,
+                    lazy,
                     debug)
     return AmeritradeAPI(config)
 
@@ -88,6 +93,7 @@ def open_with_dir(client_id: str,
                   timeout: int = 300,
                   readonly: bool = True,
                   cache: str = None,
+                  lazy: bool = False,
                   debug: bool = False):
     """Create an API endpoint with a config dfir. This is the main entry point."""
     config = Config(client_id,
@@ -98,6 +104,7 @@ def open_with_dir(client_id: str,
                     path.join(config_dir, 'secrets.json'),
                     readonly,
                     cache,
+                    lazy,
                     debug)
     return AmeritradeAPI(config)
 
@@ -110,22 +117,29 @@ class AmeritradeAPI:
     """An Ameritrade endpoint, with credentials."""
 
     def __init__(self, config: Config):
-        """
-        """
         self.config = config
-        self.secrets = auth.read_or_create_secrets(config.secrets_file, config)
+        self.secrets = None
+        if not config.lazy:
+            self.get_secrets()
 
-    def __getattribute__(self, key):
+    def get_secrets(self):
+        if self.secrets is None:
+            logging.info("Authenticating")
+            self.secrets = auth.read_or_create_secrets(self.config.secrets_file,
+                                                       self.config)
+        return self.secrets
+
+    def __getattr__(self, key):
         method = schema.SCHEMA[key]
+        config = self.config
+
         # Disallow read-only methods.
-        config = object.__getattribute__(self, 'config')
         if config.readonly and method.http_method != 'GET':
             raise NameError("Method {} is not allowed in safe read-only mode.".format(
                 method.name))
         else:
-            method = CallableMethod(method,
-                                    object.__getattribute__(self, 'secrets'),
-                                    config.debug)
+            # Create a method, with caching or not.
+            method = CallableMethod(method, self, config.debug)
             if config.cache:
                 method = CachedMethod(config.cache, key, method, config.debug)
             return method
@@ -134,9 +148,9 @@ class AmeritradeAPI:
 class CallableMethod:
     """Callable method."""
 
-    def __init__(self, method: schema.PreparedMethod, secrets: Secrets, debug: bool):
+    def __init__(self, method: schema.PreparedMethod, api: AmeritradeAPI, debug: bool):
         self.method = method
-        self.secrets = secrets
+        self.api = api
         self.debug = debug
 
     def __call__(self, **kw):
@@ -167,7 +181,8 @@ class CallableMethod:
                 raise exc
 
         # Build the headers and URL path to call.
-        headers = auth.get_headers(self.secrets)
+        api = self.api.get_secrets()
+        headers = auth.get_headers(api)
         path_kw = {field: kw.pop(field) for field in method.url_fields}
         path = method.path.format(**path_kw)
         url = 'https://api.tdameritrade.com/v1{}'.format(path)
