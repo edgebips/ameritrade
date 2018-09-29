@@ -2,6 +2,12 @@
 
 2018-09-28
 
+  - Pull the client id from the '$AMERITRADE_DIR/config/client_id' file instead
+    of having to be brought it.
+
+  - Changed the environment variables to a single variable 'AMERITRADE_DIR'
+    which contains both the cache and the configuration directory.
+
   - Added lazy option to the API in order to take full advantage of the cache
     while developing, and not even having to reconnect if everything requested
     has been cached.

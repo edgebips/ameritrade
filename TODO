@@ -1,17 +1,27 @@
 TODO:
 
-- Consider merging AMERTRADE_CONFIG_DIR to ~/.ameritrade and make a client_id
-  file in there and all certificate files in there.
+- Make the construction of Config() use keyword args and use that to connect
+  instead of open_with_dir(), so that we can implement ameritrade.check.
 
-- Add support for PUT and PATCH methods.
+- Create a script (invocable via python3 -m ameritrade.check) to test connection
+  and print out the full configuration.
 
-- Add argument data types and check them.
+
+
+
+- This script is one that should create the configuration the first time if it
+  doesn't exist.
 
 - Post a clear instructions on how to create a self-signed certificate with
   correct paths, maybe make this automatic even, providing a script that will
-  run the commands for you.
+  run the commands for you if the config directory does not exist.
 
-- Download return value schemas and integrate them.
+
+
+
+- Add support for PUT and PATCH methods.
+
+- Add argument data types to schema and check them.
 
 - Support positional arguments.
 

@@ -1,3 +1,6 @@
+__author__ = 'Martin Blais <blais@furius.ca>'
+__license__ = "GNU GPLv2"
+
 import datetime
 from decimal import Decimal
 from ameritrade import options

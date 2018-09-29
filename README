@@ -16,8 +16,9 @@ Usage
 
 https://developer.tdameritrade.com/content/web-server-authentication-python-3
 
-   $ export AMERITRADE_CLIENT_ID='<USERNAME>@AMER.OAUTHAP'
-   $ export AMERITRADE_CONFIG_DIR=/path/to/encrypted/directory
+   $ export AMERITRADE_DIR=/path/to/encrypted/directory
+
+<USERNAME>@AMER.OAUTHAP'
 
    $ cd /path/to/encrypted/directory
    $ openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 365 -out certificate.pem

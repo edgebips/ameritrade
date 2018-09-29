@@ -4,9 +4,8 @@ Homepage: https://developer.tdameritrade.com
 
 Usage:
 
-    api = ameritrade.open_with_dir(client_id=args.client_id,
-                                   redirect_uri='https://localhost:8444',
-                                   config_dir=config_dir)
+    api = ameritrade.open_with_dir(config_dir=config_dir,
+                                   redirect_uri='https://localhost:8444')
     instruments = api.SearchInstruments(symbol='Vanguard', projection='desc-search')
 
 See schema.py for a description of all available methods.

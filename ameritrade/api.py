@@ -53,7 +53,7 @@ Config = NamedTuple('Config', [
     # method name and set of arguments. Don't use this normally, just when
     # developing or debugging, to minimize API calls and reduce turnaround time.
     # Cache hit/misses are logged to INFO level.
-    ('cache', str),
+    ('cache_dir', str),
 
     # Authenticate or refresh secrets lazily, upon first attribute access.
     ('lazy', bool),
@@ -70,7 +70,7 @@ def open(client_id: str,
          timeout: int = 300,
          secrets_file: str = None,
          readonly: bool = True,
-         cache: str = None,
+         cache_dir: str = None,
          lazy: bool = False,
          debug: bool = False):
     """Create an API endpoint. This is the main entry point."""
@@ -81,21 +81,26 @@ def open(client_id: str,
                     timeout,
                     secrets_file,
                     readonly,
-                    cache,
+                    cache_dir,
                     lazy,
                     debug)
     return AmeritradeAPI(config)
 
 
-def open_with_dir(client_id: str,
-                  config_dir: str = os.getcwd(),
+def open_with_dir(config_dir: str = os.getcwd(),
                   redirect_uri: str = 'https://localhost:8444',
                   timeout: int = 300,
                   readonly: bool = True,
-                  cache: str = None,
+                  cache_dir: str = None,
                   lazy: bool = False,
                   debug: bool = False):
     """Create an API endpoint with a config dfir. This is the main entry point."""
+
+    # Read the client id from the 'config/client_id' file.
+    client_id_file = path.join(config_dir, 'client_id')
+    with open(client_id_file) as clifile:
+        client_id = clifile.read().strip()
+
     config = Config(client_id,
                     redirect_uri,
                     path.join(config_dir, 'key.pem'),
@@ -103,7 +108,7 @@ def open_with_dir(client_id: str,
                     timeout,
                     path.join(config_dir, 'secrets.json'),
                     readonly,
-                    cache,
+                    cache_dir,
                     lazy,
                     debug)
     return AmeritradeAPI(config)
@@ -140,8 +145,8 @@ class AmeritradeAPI:
         else:
             # Create a method, with caching or not.
             method = CallableMethod(method, self, config.debug)
-            if config.cache:
-                method = CachedMethod(config.cache, key, method, config.debug)
+            if config.cache_dir:
+                method = CachedMethod(config.cache_dir, key, method, config.debug)
             return method
 
 
