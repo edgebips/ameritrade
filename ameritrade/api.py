@@ -98,7 +98,7 @@ def open_with_dir(config_dir: str = os.getcwd(),
 
     # Read the client id from the 'config/client_id' file.
     client_id_file = path.join(config_dir, 'client_id')
-    with open(client_id_file) as clifile:
+    with builtins.open(client_id_file) as clifile:
         client_id = clifile.read().strip()
 
     config = Config(client_id,
