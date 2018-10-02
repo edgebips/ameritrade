@@ -19,8 +19,7 @@ from ameritrade import auth
 from ameritrade import schema
 
 
-# Configuration object. Create one of those and call AmeritradeAPI().
-Config = NamedTuple('Config', [
+_Config = NamedTuple('_Config', [
     # The OAuth client id string, such as '<USERNAME>@AMER.OAUTHAP'.
     ('client_id', str),
 
@@ -35,12 +34,12 @@ Config = NamedTuple('Config', [
     # The location of the certificate PEM file.
     ('certificate_file', str),
 
-    # Timeout (in seconds) to wait for OAuth token response.
-    ('timeout', int),
-
     # The location of the JSON file to store the OAuth token in between
     # invocations.
     ('secrets_file', str),
+
+    # Timeout (in seconds) to wait for OAuth token response.
+    ('timeout', int),
 
     # Safe-mode that disallows any methods that modify state. Only allows
     # getters to read data from the account.
@@ -63,54 +62,51 @@ Config = NamedTuple('Config', [
     ])
 
 
-def open(client_id: str,
-         redirect_uri: str = 'https://localhost:8444',
-         key_file: str = None,
-         certificate_file: str = None,
-         timeout: int = 300,
-         secrets_file: str = None,
-         readonly: bool = True,
-         cache_dir: str = None,
-         lazy: bool = False,
-         debug: bool = False):
-    """Create an API endpoint. This is the main entry point."""
-    config = Config(client_id,
-                    redirect_uri,
-                    key_file,
-                    certificate_file,
-                    timeout,
-                    secrets_file,
-                    readonly,
-                    cache_dir,
-                    lazy,
-                    debug)
-    return AmeritradeAPI(config)
+_ConfigDefaults = {
+    'redirect_uri': 'https://localhost:8444',
+    'timeout': 300,
+    'readonly': True,
+    'lazy': False,
+    'debug': False,
+}
+
+class Config(_Config):
+    """Configuration object. Create one of those and call AmeritradeAPI()."""
+
+    def __new__(cls, *args, **kwargs):
+        """Create a Config instance using the kwargs."""
+        cpargs = dict(kwargs)
+        args += tuple(cpargs.pop(key, _ConfigDefaults.get(key, None))
+                      for key in Config._fields[len(args):])
+        if cpargs:
+            raise ValueError("Invalid arguments: {}".format(','.join(cpargs.keys())))
+        return _Config.__new__(cls, *args)
 
 
-def open_with_dir(config_dir: str = os.getcwd(),
-                  redirect_uri: str = 'https://localhost:8444',
-                  timeout: int = 300,
-                  readonly: bool = True,
-                  cache_dir: str = None,
-                  lazy: bool = False,
-                  debug: bool = False):
+def config_from_dir(config_dir: str = os.getcwd(), **kwargs) -> Config:
     """Create an API endpoint with a config dfir. This is the main entry point."""
 
-    # Read the client id from the 'config/client_id' file.
-    client_id_file = path.join(config_dir, 'client_id')
-    with open(client_id_file) as clifile:
-        client_id = clifile.read().strip()
+    # Set filenames from dir if not set.
+    newargs = dict(kwargs)
+    if newargs.get('key_file', None) is None:
+        newargs['key_file'] = path.join(config_dir, 'key.pem')
+    if newargs.get('certificate_file', None) is None:
+        newargs['certificate_file'] = path.join(config_dir, 'certificate.pem')
+    if newargs.get('secrets_file', None) is None:
+        newargs['secrets_file'] = path.join(config_dir, 'secrets.json')
 
-    config = Config(client_id,
-                    redirect_uri,
-                    path.join(config_dir, 'key.pem'),
-                    path.join(config_dir, 'certificate.pem'),
-                    timeout,
-                    path.join(config_dir, 'secrets.json'),
-                    readonly,
-                    cache_dir,
-                    lazy,
-                    debug)
+    # Read the client id from the 'config/client_id' file.
+    if newargs.get('client_id', None) is None:
+        newargs['client_id']
+        client_id_file = path.join(config_dir, 'client_id')
+        with open(client_id_file) as clifile:
+            client_id = clifile.read().strip()
+
+    return Config(**newargs)
+
+
+def open(config: Config) -> AmeritradeAPI:
+    """Create an API endpoint. This is the main entry point."""
     return AmeritradeAPI(config)
 
 

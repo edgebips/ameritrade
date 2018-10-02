@@ -1,3 +1,4 @@
+
 """Unit tests for API."""
 __author__ = 'Martin Blais <blais@furius.ca>'
 __license__ = "GNU GPLv2"
@@ -13,10 +14,21 @@ def open_for_test():
     return api.open('TEST@AMER.OAUTHAP')
 
 
+def test_make_config():
+    c = api.Config()
+    assert isinstance(c, api.Config)
+    c = api.Config(client_id='TEST@AMER.OAUTHAP')
+    assert isinstance(c, api.Config)
+    with pytest.raises(ValueError):
+        c = api.Config(unknown='TEST@AMER.OAUTHAP')
+
+
 @mock.patch('ameritrade.auth.get_headers')
+@mock.patch('ameritrade.auth.read_or_create_secrets')
 @mock.patch('requests.get')
-def test_get(_, reqget):
-    method = api.CallableMethod(schema.SCHEMA['GetMovers'], object(), False)
+def test_get(_, __, reqget):
+    a = open_for_test()
+    method = api.CallableMethod(schema.SCHEMA['GetMovers'], a, False)
 
     # Missing a required field.
     with pytest.raises(TypeError):
@@ -46,4 +58,6 @@ def test_get(_, reqget):
 def test_readonly(_, __, ___):
     iapi = open_for_test()
     with pytest.raises(NameError):
-        iapi.ReplaceSavedOrder(accountId='accountId', savedOrderId='savedOrderId', payload={})
+        iapi.ReplaceSavedOrder(accountId='accountId',
+                               savedOrderId='savedOrderId',
+                               payload={})

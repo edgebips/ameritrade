@@ -47,10 +47,10 @@ def clear_cache(cache_dir: str):
         os.remove(path.join(cache_dir, filename))
 
 
-def open_with_args(args,
-                   readonly: bool = True,
-                   lazy: bool = False,
-                   debug: bool = False):
+def config_from_args(args,
+                     readonly: bool = True,
+                     lazy: bool = False,
+                     debug: bool = False):
     """Create the API with the script arguments."""
 
     # Optionally clear the cache before running.

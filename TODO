@@ -3,8 +3,13 @@ TODO:
 - Make the construction of Config() use keyword args and use that to connect
   instead of open_with_dir(), so that we can implement ameritrade.check.
 
-- Create a script (invocable via python3 -m ameritrade.check) to test connection
-  and print out the full configuration.
+- Create a script (invocable via python3 -m ameritrade.check) to test the
+  connection and print out the full configuration.
+
+- two-step is how it should be; validate the configuration, add unit tests.
+
+- cache_read, cache_write, as options.
+
 
 
 
@@ -14,7 +19,9 @@ TODO:
 
 - Post a clear instructions on how to create a self-signed certificate with
   correct paths, maybe make this automatic even, providing a script that will
-  run the commands for you if the config directory does not exist.
+  run the commands for you if the config directory does not exist. ACTUALLY YOU
+  CAN'T DO THIS, YOU HAVE TO DOWNLOAD THE SECRETS FILE FROM THE WEBSITE, THERE'S
+  NO WAY AROUND THAT.
 
 
 
@@ -23,7 +30,7 @@ TODO:
 
 - Add argument data types to schema and check them.
 
-- Support positional arguments.
+- Support positional arguments, maybe?
 
 - Implement unit tests for schema validation, and perhaps move some of it to a
   dedicated module.
