@@ -15,8 +15,8 @@ __license__ = "GNU GPLv2"
 
 from ameritrade import api
 open = api.open
-open_with_dir = api.open_with_dir
+config_from_dir = api.config_from_dir
 
 from ameritrade import scripts
 add_script_args = scripts.add_args
-open_with_args = scripts.open_with_args
+config_from_args = scripts.config_from_args

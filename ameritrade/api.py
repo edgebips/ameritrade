@@ -105,11 +105,6 @@ def config_from_dir(config_dir: str = os.getcwd(), **kwargs) -> Config:
     return Config(**newargs)
 
 
-def open(config: Config) -> AmeritradeAPI:
-    """Create an API endpoint. This is the main entry point."""
-    return AmeritradeAPI(config)
-
-
 # A dict of secrets. Contains the access token and Bearer type.
 Secrets = Dict[str, str]
 
@@ -144,6 +139,11 @@ class AmeritradeAPI:
             if config.cache_dir:
                 method = CachedMethod(config.cache_dir, key, method, config.debug)
             return method
+
+
+def open(config: Config) -> AmeritradeAPI:
+    """Create an API endpoint. This is the main entry point."""
+    return AmeritradeAPI(config)
 
 
 class CallableMethod:
