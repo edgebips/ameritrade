@@ -114,7 +114,9 @@ def main():
                         help="Filter on the description field (for Weekly or Monthly)")
 
     args = parser.parse_args()
-    api = ameritrade.open_with_args(args)
+    config = ameritrade.config_from_args(args)
+    api = ameritrade.open(config)
+
     # Fetch call chain.
     fromDate = datetime.date.today() + datetime.timedelta(days=5)
     toDate = datetime.date.today() + datetime.timedelta(days=45)

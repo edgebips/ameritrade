@@ -59,7 +59,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.strip())
     ameritrade.add_script_args(parser)
     args = parser.parse_args()
-    api = ameritrade.open_with_args(args)
+    config = ameritrade.config_from_args(args)
+    api = ameritrade.open(config)
 
     # Fetch call chain for underlying.
     hist = api.GetPriceHistory(symbol='SPY',

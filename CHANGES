@@ -1,5 +1,6 @@
 === CHANGES: ameritrade ===
 
+
 2018-09-28
 
   - Pull the client id from the '$AMERITRADE_DIR/config/client_id' file instead

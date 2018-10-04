@@ -97,10 +97,9 @@ def config_from_dir(config_dir: str = os.getcwd(), **kwargs) -> Config:
 
     # Read the client id from the 'config/client_id' file.
     if newargs.get('client_id', None) is None:
-        newargs['client_id']
         client_id_file = path.join(config_dir, 'client_id')
         with builtins.open(client_id_file) as clifile:
-            client_id = clifile.read().strip()
+            newargs['client_id'] = clifile.read().strip()
 
     return Config(**newargs)
 

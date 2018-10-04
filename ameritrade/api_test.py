@@ -9,6 +9,7 @@ import pytest
 from ameritrade import schema
 from ameritrade import api
 
+
 def open_for_test():
     """Create an API endpoint. This is the main entry point."""
     return api.open(api.Config(client_id='TEST@AMER.OAUTHAP'))
