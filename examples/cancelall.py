@@ -32,7 +32,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.strip())
     ameritrade.add_script_args(parser)
     args = parser.parse_args()
-    api = ameritrade.open_with_args(args, readonly=False)
+    config = ameritrade.config_from_args(args, readonly=False)
+    api = ameritrade.open(config)
 
     orders = api.GetOrdersByQuery()
     cancel_orders = []

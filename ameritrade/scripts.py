@@ -47,10 +47,10 @@ def clear_cache(cache_dir: str):
         os.remove(path.join(cache_dir, filename))
 
 
-def open_with_args(args,
-                   readonly: bool = True,
-                   lazy: bool = False,
-                   debug: bool = False):
+def config_from_args(args,
+                     readonly: bool = True,
+                     lazy: bool = False,
+                     debug: bool = False):
     """Create the API with the script arguments."""
 
     # Optionally clear the cache before running.
@@ -65,7 +65,7 @@ def open_with_args(args,
     # The cache dir contains past responses for API queries.
     cache_dir = path.join(args.ameritrade_dir, 'cache')
 
-    return api.open_with_dir(
+    return api.config_from_dir(
         config_dir=config_dir,
         redirect_uri='https://localhost:8444',
         cache_dir=cache_dir if args.ameritrade_cache else None,

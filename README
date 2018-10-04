@@ -32,7 +32,12 @@ Then from Python::
      parser = argparse.ArgumentParser(description=__doc__.strip())
      ameritrade.add_script_args(parser)
      args = parser.parse_args()
-     api = ameritrade.open_with_args(args)
+     config = ameritrade.config_from_args(args)
+     api = ameritrade.open(config)
      ...
 
 See `examples/minimal.py` for an example.
+
+To test your configuration and connection from your ~/.ameritrade config, run this::
+
+   python3 -m ameritrade.check

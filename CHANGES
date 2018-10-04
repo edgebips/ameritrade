@@ -1,5 +1,14 @@
 === CHANGES: ameritrade ===
 
+
+2018-10-04
+
+  - Ported all the code to a single open() call, with multiple configuration
+  creation calls
+
+  - Created check.py, a module that just prints and tests the config.
+
+
 2018-09-28
 
   - Pull the client id from the '$AMERITRADE_DIR/config/client_id' file instead
