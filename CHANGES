@@ -3,8 +3,11 @@
 
 2018-10-04
 
+  - Added separate 'read_cache' and 'write_cache' options, for more control
+    during development. Also added corresponding command-line options.
+
   - Ported all the code to a single open() call, with multiple configuration
-  creation calls
+    creation calls.
 
   - Created check.py, a module that just prints and tests the config.
 

@@ -28,13 +28,13 @@ def ParseOptionSymbol(string: str) -> Option:
     if '_' not in string:
         raise ValueError("Invalid Ameritrade symbol: '{}'".format(string))
     symbol, _, rest = string.partition('_')
-    if not re.match('\d+$', rest[0:6]):
+    if not re.match(r'\d+$', rest[0:6]):
         raise ValueError("Invalid Ameritrade symbol: '{}'".format(string))
     expiration = datetime.datetime.strptime(rest[0:6], '%m%d%y').date()
     side = rest[6]
     if side not in {'C', 'P'}:
         raise ValueError("Invalid Ameritrade symbol: '{}'".format(string))
-    if not re.match('\d+$', rest[7:]):
+    if not re.match(r'\d+$', rest[7:]):
         raise ValueError("Invalid Ameritrade symbol: '{}'".format(string))
     strike = Decimal(rest[7:])
     return Option(symbol, expiration, strike, side)
@@ -84,7 +84,7 @@ def ParseOptionCusip(string):
     if string[9] != '0':
         raise ValueError("Invalid CUSIP: '{}'".format(string))
 
-    if not re.match('\d+$', string[10:16]):
+    if not re.match(r'\d+$', string[10:16]):
         raise ValueError("Invalid CUSIP: '{}'".format(string))
     strike = Decimal(string[10:16])/1000
     return Option(symbol, expiration, strike, side)

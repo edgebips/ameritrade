@@ -58,6 +58,7 @@ def get_first_account_api(api):
 
 
 def main():
+    logging.basicConfig(level=logging.INFO, format='%(levelname)-8s: %(message)s')
     parser = argparse.ArgumentParser(description=__doc__.strip())
     ameritrade.add_script_args(parser)
     args = parser.parse_args()

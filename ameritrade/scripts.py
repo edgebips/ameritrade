@@ -32,9 +32,20 @@ def add_args(parser):
                         default=program_dir,
                         help='The directory where the cache and config and secrets live.')
 
-    # Cache control.
-    parser.add_argument('--ameritrade-cache', action='store_true',
-                        help='True if we cache the result of calls.')
+    # Cache control. This kind of control is very useful during development.
+    parser.set_defaults(ameritrade_cache={'read': False, 'write': False})
+    cache_group = parser.add_mutually_exclusive_group()
+    cache_group.add_argument('--ameritrade-cache', dest='ameritrade_cache',
+                             action='store_const', const={'read': True, 'write': True},
+                             help='Read and write from the request cache.')
+    cache_group.add_argument('--ameritrade-read-cache', dest='ameritrade_cache',
+                             action='store_const', const={'read': True, 'write': False},
+                             help='Read from the cache, but do not update it.')
+    cache_group.add_argument('--ameritrade-write-cache', dest='ameritrade_cache',
+                             action='store_const', const={'read': False, 'write': True},
+                             help='Do not read from the cache, but update it always.')
+
+    # Clear the cache before running.
     parser.add_argument('--ameritrade-clear-cache', action='store_true',
                         help='Clear the cache before running.')
 
@@ -65,10 +76,16 @@ def config_from_args(args,
     # The cache dir contains past responses for API queries.
     cache_dir = path.join(args.ameritrade_dir, 'cache')
 
+    # Cache settings.
+    read_cache = args.ameritrade_cache.get('read', False)
+    write_cache = args.ameritrade_cache.get('write', False)
+
     return api.config_from_dir(
         config_dir=config_dir,
         redirect_uri='https://localhost:8444',
-        cache_dir=cache_dir if args.ameritrade_cache else None,
+        read_cache=read_cache,
+        write_cache=write_cache,
+        cache_dir=cache_dir if read_cache or write_cache else None,
         readonly=readonly,
         lazy=lazy,
         debug=debug)

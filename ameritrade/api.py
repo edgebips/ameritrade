@@ -45,14 +45,18 @@ _Config = NamedTuple('_Config', [
     # getters to read data from the account.
     ('readonly', bool),
 
-    # Cache: If non-null, all calls are cached to files and the cache is
-    # consulted and returned if present before making new calls. This is
-    # intended to be used during development of scripts in order to avoid
-    # hitting the API so much while iterating over code. The cache is indexed by
-    # method name and set of arguments. Don't use this normally, just when
-    # developing or debugging, to minimize API calls and reduce turnaround time.
-    # Cache hit/misses are logged to INFO level.
+    # Cache directory; this string value must be set to a non-null directory
+    # path (created on-demand if it does not already exist), if the 'read_cache'
+    # or 'write_cache' options are set to true.
+    # This is intended to be used during development of scripts in order to
+    # avoid hitting the API so much while iterating over code. The cache is
+    # indexed by method name and set of arguments.
     ('cache_dir', str),
+
+    # FLags that decide whether we're reading from the cache or writing
+    # to/updating the cache contents (if reading, on a cache miss).
+    ('read_cache', bool),
+    ('write_cache', bool),
 
     # Authenticate or refresh secrets lazily, upon first attribute access.
     ('lazy', bool),
@@ -68,6 +72,8 @@ _ConfigDefaults = {
     'readonly': True,
     'lazy': False,
     'debug': False,
+    'read_cache': False,
+    'write_cache': False,
 }
 
 class Config(_Config):
@@ -135,8 +141,11 @@ class AmeritradeAPI:
         else:
             # Create a method, with caching or not.
             method = CallableMethod(method, self, config.debug)
-            if config.cache_dir:
-                method = CachedMethod(config.cache_dir, key, method, config.debug)
+            if config.read_cache or config.write_cache:
+                assert config.cache_dir
+                method = CachedMethod(config.read_cache, config.write_cache,
+                                      config.cache_dir,
+                                      key, method, config.debug)
             return method
 
 
@@ -208,11 +217,14 @@ class CallableMethod:
 class CachedMethod:
     """A caching proxy for any callable methods."""
 
-    def __init__(self, cache_dir, method_name, method, debug):
+    def __init__(self, read_cache, write_cache, cache_dir, method_name, method, debug):
+        self.read_cache = read_cache
+        self.write_cache = write_cache
         self.cache_dir = cache_dir
         self.method_name = method_name
         self.method = method
         self.debug = debug
+        assert cache_dir
 
     def __call__(self, **kw):
         # Ensure the cache directory exists the first time a method is called.
@@ -230,15 +242,17 @@ class CachedMethod:
 
         # Test the cache.
         cache_path = path.join(self.cache_dir, digest)
-        if path.exists(cache_path):
+        if self.read_cache and path.exists(cache_path):
             # Cache hit.
-            logging.info("Cache hit for call to %s", self.method_name)
+            logging.info("{%s} Cache hit for call to %s", digest, self.method_name)
             with builtins.open(cache_path, 'r') as infile:
                 return json.load(infile)
         else:
             # Cache miss.
-            logging.info("Cache miss for call to %s", self.method_name)
+            logging.info("{%s} Cache miss for call to %s", digest, self.method_name)
             response = self.method(**kw)
-            with builtins.open(cache_path, 'w') as infile:
-                json.dump(response, infile)
+            if self.write_cache:
+                logging.info("{%s} Updating cache for call to %s", digest, self.method_name)
+                with builtins.open(cache_path, 'w') as infile:
+                    json.dump(response, infile)
             return response
