@@ -19,5 +19,5 @@ open = api.open
 config_from_dir = api.config_from_dir
 
 from ameritrade import scripts
-add_script_args = scripts.add_args
+add_args = scripts.add_args
 config_from_args = scripts.config_from_args

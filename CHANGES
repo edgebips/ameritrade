@@ -1,5 +1,9 @@
 === CHANGES: ameritrade ===
 
+2018-10-13
+
+  - Fixed API for recent changes, just renaming add_script_args to add_args.
+
 
 2018-10-04
 
