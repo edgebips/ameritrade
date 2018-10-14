@@ -2,6 +2,8 @@
 
 2018-10-13
 
+  - Fixed bug with recent changes to the cache.
+
   - Fixed API for recent changes, just renaming add_script_args to add_args.
 
 

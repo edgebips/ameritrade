@@ -64,11 +64,6 @@ def config_from_args(args,
                      debug: bool = False):
     """Create the API with the script arguments."""
 
-    # Optionally clear the cache before running.
-    if args.ameritrade_clear_cache and args.ameritrade_cache_dir:
-        # Clear just the filenames that look like MD5 hashes.
-        clear_cache(args.ameritrade_cache_dir)
-
     # The config dir contains the certificate.pem and key.pem files, the
     # secrets.json file, and a client_id file.
     config_dir = path.join(args.ameritrade_dir, 'config')
@@ -79,6 +74,11 @@ def config_from_args(args,
     # Cache settings.
     read_cache = args.ameritrade_cache.get('read', False)
     write_cache = args.ameritrade_cache.get('write', False)
+
+    # Optionally clear the cache before running.
+    if args.ameritrade_clear_cache and cache_dir:
+        # Clear just the filenames that look like MD5 hashes.
+        clear_cache(cache_dir)
 
     return api.config_from_dir(
         config_dir=config_dir,
