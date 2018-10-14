@@ -34,7 +34,7 @@ def ParseOptionSymbol(string: str) -> Option:
     side = rest[6]
     if side not in {'C', 'P'}:
         raise ValueError("Invalid Ameritrade symbol: '{}'".format(string))
-    if not re.match(r'\d+$', rest[7:]):
+    if not re.match(r'[0-9\.]+$', rest[7:]):
         raise ValueError("Invalid Ameritrade symbol: '{}'".format(string))
     strike = Decimal(rest[7:])
     return Option(symbol, expiration, strike, side)
