@@ -1,5 +1,10 @@
 === CHANGES: ameritrade ===
 
+2019-03-06
+
+  - Fixed a bug with parsing option names for year 2018.
+
+
 2018-10-13
 
   - Allow period in Ameritrade symbol, for cents in strike prices.

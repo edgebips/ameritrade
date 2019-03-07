@@ -76,7 +76,7 @@ def ParseOptionCusip(string):
     yearnow = today.year % 10
     yearbase = today.year // 10 * 10
     yearchar = int(string[8])
-    if yearchar - yearnow < 0:
+    if yearchar - yearnow < -5:  # Down to 20X5
         yearbase += 10
     year = yearbase + yearchar
 
