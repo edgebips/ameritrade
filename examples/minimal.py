@@ -19,7 +19,7 @@ import ameritrade
 
 def main():
     parser = argparse.ArgumentParser()
-    ameritrade.add_script_args(parser)
+    ameritrade.add_args(parser)
     args = parser.parse_args()
     config = ameritrade.config_from_args(args)
     api = ameritrade.open(config)

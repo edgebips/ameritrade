@@ -1,5 +1,10 @@
 === CHANGES: ameritrade ===
 
+2020-03-12
+
+  - Fixed example scripts for API changes.
+
+
 2019-03-06
 
   - Fixed a bug with parsing option names for year 2018.

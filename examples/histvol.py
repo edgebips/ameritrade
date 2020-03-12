@@ -39,8 +39,8 @@ def historical_volatility(datetime, close):
 
 def historical_volatility_dist(datetime, close, days):
     """Compute the distribution of volatility estimates."""
+    assert datetime is not None
     assert datetime.shape == close.shape
-    assert datetime
     num = datetime.shape[0]
     ann = math.sqrt(365./days)
     vols = []
@@ -57,7 +57,7 @@ def main():
     """Compute various vol estimates."""
     logging.basicConfig(level=logging.INFO, format='%(levelname)-8s: %(message)s')
     parser = argparse.ArgumentParser(description=__doc__.strip())
-    ameritrade.add_script_args(parser)
+    ameritrade.add_args(parser)
     args = parser.parse_args()
     config = ameritrade.config_from_args(args)
     api = ameritrade.open(config)
@@ -79,7 +79,7 @@ def main():
 
         if centiles:
             _, vols = historical_volatility_dist(candle.datetime, candle.close, days)
-            assert vols
+            assert len(vols) > 0
             meanvol = numpy.mean(vols)
             stdvol = numpy.std(vols)
             centile = norm.cdf(vol, meanvol, stdvol)

@@ -92,7 +92,7 @@ def get_candidates(chain, args):
 def main():
     logging.basicConfig(level=logging.INFO, format='%(levelname)-8s: %(message)s')
     parser = argparse.ArgumentParser(description=__doc__.strip())
-    ameritrade.add_script_args(parser)
+    ameritrade.add_args(parser)
 
     parser.add_argument('-s', '--underlying', '--stock', action='store',
                         default='$XSP.X',  # E-mini S&P 500 Futures

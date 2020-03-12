@@ -30,7 +30,7 @@ def keep(mapping, keepkeys):
 def main():
     """Cancel all orders."""
     parser = argparse.ArgumentParser(description=__doc__.strip())
-    ameritrade.add_script_args(parser)
+    ameritrade.add_args(parser)
     args = parser.parse_args()
     config = ameritrade.config_from_args(args, readonly=False)
     api = ameritrade.open(config)
