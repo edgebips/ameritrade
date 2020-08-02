@@ -56,10 +56,14 @@ _MONTHSIDEMAPINV = {key: value for value, key in _MONTHSIDEMAP.items()}
 _DAYMAP = '_123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 
-def ParseOptionCusip(string):
+def ParseOptionCusip(string, yeartxn=None):
     """Given an Ameritrade CUSIP for an option, parse it into its components.
 
     The argument is a cusip like '0SPY..HH80290000' or '0HDV..BG80088000'.
+
+    Args:
+      string: The options CUSIP to parse.
+      yeartxn: An optional integer of the year of transaction.
     """
     if len(string) != 16 or string[0] != '0':
         raise ValueError("Invalid CUSIP: '{}'".format(string))
@@ -72,9 +76,13 @@ def ParseOptionCusip(string):
     day = _DAYMAP.index(string[7])
 
     # Compute year.
-    today = datetime.date.today()
-    yearnow = today.year % 10
-    yearbase = today.year // 10 * 10
+    if yeartxn is None:
+        yeartxn = datetime.date.today().year
+    else:
+        assert isinstance(yeartxn, int)
+
+    yearnow = yeartxn % 10
+    yearbase = yeartxn // 10 * 10
     yearchar = int(string[8])
     if yearchar - yearnow < -5:  # Down to 20X5
         yearbase += 10
