@@ -17,6 +17,7 @@ __license__ = "GNU GPLv2"
 from os import path
 import os
 import re
+from typing import Optional
 
 from ameritrade import api
 
@@ -59,9 +60,9 @@ def clear_cache(cache_dir: str):
 
 
 def config_from_args(args,
-                     readonly: bool = True,
-                     lazy: bool = False,
-                     debug: bool = False):
+                     readonly: Optional[bool] = True,
+                     lazy: Optional[bool] = False,
+                     debug: Optional[bool] = False):
     """Create the API with the script arguments."""
 
     # The config dir contains the certificate.pem and key.pem files, the

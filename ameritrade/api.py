@@ -4,6 +4,8 @@ __author__ = 'Martin Blais <blais@furius.ca>'
 __license__ = "GNU GPLv2"
 
 from os import path
+from os import path
+from typing import Optional
 from typing import Tuple, Dict, NamedTuple
 import builtins
 import hashlib
@@ -11,7 +13,6 @@ import json
 import logging
 import os
 import pickle
-from pprint import pprint
 import re
 import requests
 
@@ -89,11 +90,19 @@ class Config(_Config):
         return _Config.__new__(cls, *args)
 
 
-def config_from_dir(config_dir: str = os.getcwd(), **kwargs) -> Config:
+DEFAULT_DIR = os.environ.get('AMERITRADE_DIR',
+                             path.join(os.getenv('HOME'), '.ameritrade'))
+
+
+def config_from_dir(config_dir: Optional[str] = None, **kwargs) -> Config:
     """Create an API endpoint with a config dfir. This is the main entry point."""
 
-    # Set filenames from dir if not set.
+    # Set defaults from same default dir used in scripts.add_args().
     newargs = dict(kwargs)
+    if config_dir is None:
+        config_dir = path.join(DEFAULT_DIR, 'config')
+
+    # Set filenames from dir if not set.
     if newargs.get('key_file', None) is None:
         newargs['key_file'] = path.join(config_dir, 'key.pem')
     if newargs.get('certificate_file', None) is None:
