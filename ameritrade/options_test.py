@@ -46,8 +46,7 @@ def test_make_option_symbol():
 
 def test_parse_option_cusip():
     for _, cusip, opt in _TESTDATA:
-        print(cusip, opt)
-        assert opt == options.ParseOptionCusip(cusip)
+        assert opt == options.ParseOptionCusip(cusip, 2019)
 
 def test_make_option_cusip():
     for _, cusip, opt in _TESTDATA:
