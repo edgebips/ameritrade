@@ -5,7 +5,7 @@ __author__ = 'Martin Blais <blais@furius.ca>'
 
 import unittest
 
-import transactions
+import ameritrade2beancount as a2b
 
 from beancount.parser.cmptest import assertEqualEntries
 
@@ -29,7 +29,7 @@ def test_JOURNAL__CASH_ALTERNATIVES_REDEMPTION():
            'transactionItem': {'accountId': 123456789, 'cost': 0.0},
            'transactionSubType': 'RM',
            'type': 'JOURNAL'}
-    assert not transactions.RunDispatch(txn)
+    assert not a2b.RunDispatch(txn)
 
 
 def test_JOURNAL__CASH_ALTERNATIVES_PURCHASE():
@@ -51,7 +51,7 @@ def test_JOURNAL__CASH_ALTERNATIVES_PURCHASE():
            'transactionItem': {'accountId': 123456789, 'cost': 0.0},
            'transactionSubType': 'PM',
            'type': 'JOURNAL'}
-    assert not transactions.RunDispatch(txn)
+    assert not a2b.RunDispatch(txn)
 
 
 def test_RECEIVE_AND_DELIVER__CASH_ALTERNATIVES_REDEMPTION():
@@ -79,7 +79,7 @@ def test_RECEIVE_AND_DELIVER__CASH_ALTERNATIVES_REDEMPTION():
                                               'type': 'MONEY_MARKET'}},
            'transactionSubType': 'RM',
            'type': 'RECEIVE_AND_DELIVER'}
-    assert not transactions.RunDispatch(txn)
+    assert not a2b.RunDispatch(txn)
 
 
 def test_RECEIVE_AND_DELIVER__CASH_ALTERNATIVES_PURCHASE():
@@ -107,7 +107,7 @@ def test_RECEIVE_AND_DELIVER__CASH_ALTERNATIVES_PURCHASE():
                                               'type': 'MONEY_MARKET'}},
            'transactionSubType': 'PM',
            'type': 'RECEIVE_AND_DELIVER'}
-    assert not transactions.RunDispatch(txn)
+    assert not a2b.RunDispatch(txn)
 
 
 def test_WIRE_IN__THIRD_PARTY():
@@ -135,7 +135,7 @@ def test_WIRE_IN__THIRD_PARTY():
         Assets:US:MSSB:Cash             -21085.70 USD
         Assets:US:Ameritrade:Main:Cash   21085.70 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
 
 def test_WIRE_IN__WIRE_INCOMING():
@@ -164,7 +164,7 @@ def test_WIRE_IN__WIRE_INCOMING():
         Assets:US:MSSB:Cash             -79980.00 USD
         Assets:US:Ameritrade:Main:Cash   79980.00 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
 
 def test_RECEIVE_AND_DELIVER__CASH_ALTERNATIVES_INTEREST():
@@ -198,7 +198,7 @@ def test_RECEIVE_AND_DELIVER__CASH_ALTERNATIVES_INTEREST():
         Income:US:Ameritrade:Main:Interest  -1.24 USD
         Assets:US:Ameritrade:Main:Cash       1.24 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
 
 def test_DIVIDEND_OR_INTEREST__FREE_BALANCE_INTEREST_ADJUSTMENT():
@@ -226,7 +226,7 @@ def test_DIVIDEND_OR_INTEREST__FREE_BALANCE_INTEREST_ADJUSTMENT():
         Income:US:Ameritrade:Main:Misc  -0.01 USD
         Assets:US:Ameritrade:Main:Cash   0.01 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
 
 
@@ -259,7 +259,7 @@ def test_DIVIDEND_OR_INTEREST__ORDINARY_DIVIDEND():
         Income:US:Ameritrade:Main:NYF:Dividend  -110.11 USD
         Assets:US:Ameritrade:Main:Cash           110.11 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
 
 def test_DIVIDEND_OR_INTEREST__NON_TAXABLE_DIVIDENDS():
@@ -291,7 +291,7 @@ def test_DIVIDEND_OR_INTEREST__NON_TAXABLE_DIVIDENDS():
         Income:US:Ameritrade:Main:NYF:Dividend  -112.02 USD
         Assets:US:Ameritrade:Main:Cash           112.02 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
 
 
@@ -324,7 +324,7 @@ def test_DIVIDEND_OR_INTEREST__LONG_TERM_GAIN_DISTRIBUTION():
         Income:US:Ameritrade:Main:NYF:Dividend  -52.89 USD
         Assets:US:Ameritrade:Main:Cash           52.89 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
 
 def test_ELECTRONIC_FUND__CLIENT_REQUESTED_ELECTRONIC_FUNDING_RECEIPT_FUNDS_NOW():
@@ -354,7 +354,7 @@ def test_ELECTRONIC_FUND__CLIENT_REQUESTED_ELECTRONIC_FUNDING_RECEIPT_FUNDS_NOW(
         Assets:US:TD:Checking           -20000.00 USD
         Assets:US:Ameritrade:Main:Cash   20000.00 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
 
 def test_ELECTRONIC_FUND__CLIENT_REQUESTED_ELECTRONIC_FUNDING_DISBURSEMENT_FUNDS_NOW():
@@ -384,7 +384,7 @@ def test_ELECTRONIC_FUND__CLIENT_REQUESTED_ELECTRONIC_FUNDING_DISBURSEMENT_FUNDS
         Assets:US:TD:Checking            4700.00 USD
         Assets:US:Ameritrade:Main:Cash  -4700.00 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
 
 def test_TRADE__BUY_TRADE__EQUITY():
@@ -422,7 +422,7 @@ def test_TRADE__BUY_TRADE__EQUITY():
         Expenses:Financial:Commissions      6.95 USD
         Assets:US:Ameritrade:Main:Cash  -5585.45 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
     txn = {'cashBalanceEffectFlag': True,
            'description': 'BUY TRADE',
@@ -458,7 +458,7 @@ def test_TRADE__BUY_TRADE__EQUITY():
         Expenses:Financial:Commissions       4.95 USD
         Assets:US:Ameritrade:Main:Cash  -14619.75 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
 
 def test_TRADE__SELL_TRADE__EQUITY():
@@ -498,7 +498,7 @@ def test_TRADE__SELL_TRADE__EQUITY():
         Assets:US:Ameritrade:Main:Cash  31696.17 USD
         Income:US:Ameritrade:Main:PnL
 
-    """, transactions.RunDispatch(txn), allow_incomplete=True)
+    """, a2b.RunDispatch(txn), allow_incomplete=True)
 
     txn = {'cashBalanceEffectFlag': True,
            'description': 'SELL TRADE',
@@ -535,7 +535,7 @@ def test_TRADE__SELL_TRADE__EQUITY():
         Assets:US:Ameritrade:Main:Cash  18179.60 USD
         Income:US:Ameritrade:Main:PnL
 
-    """, transactions.RunDispatch(txn), allow_incomplete=True)
+    """, a2b.RunDispatch(txn), allow_incomplete=True)
 
 
 def test_TRADE__BUY_TRADE__OPTION__OPENING():
@@ -579,7 +579,7 @@ def test_TRADE__BUY_TRADE__OPTION__OPENING():
         Expenses:Financial:Fees               0.08 USD
         Assets:US:Ameritrade:Main:Cash     -584.03 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
     txn = {'cashBalanceEffectFlag': True,
            'description': 'BUY TRADE',
@@ -621,7 +621,7 @@ def test_TRADE__BUY_TRADE__OPTION__OPENING():
         Expenses:Financial:Fees                 0.14 USD
         Assets:US:Ameritrade:Main:Cash     -12470.09 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
 
 def test_TRADE__BUY_TRADE__OPTION__CLOSING():
@@ -671,7 +671,7 @@ def test_TRADE__SELL_TRADE__OPTION__OPENING():
         Assets:US:Ameritrade:Main:Options   -1000 SPY180921C299 {0.2300 USD}
         Assets:US:Ameritrade:Main:Cash     219.89 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
     txn = {'cashBalanceEffectFlag': True,
            'description': 'SELL TRADE',
@@ -713,7 +713,7 @@ def test_TRADE__SELL_TRADE__OPTION__OPENING():
         Expenses:Financial:Fees               0.30 USD
         Assets:US:Ameritrade:Main:Cash     1406.50 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
 
 def test_TRADE__SELL_TRADE__OPTION__CLOSING():
@@ -758,7 +758,7 @@ def test_TRADE__SELL_TRADE__OPTION__CLOSING():
         Assets:US:Ameritrade:Main:Cash     1154.60 USD
         Income:US:Ameritrade:Main:PnL
 
-    """, transactions.RunDispatch(txn), allow_incomplete=True)
+    """, a2b.RunDispatch(txn), allow_incomplete=True)
 
     txn = {'cashBalanceEffectFlag': True,
            'description': 'SELL TRADE',
@@ -801,7 +801,7 @@ def test_TRADE__SELL_TRADE__OPTION__CLOSING():
         Assets:US:Ameritrade:Main:Cash     3335.30 USD
         Income:US:Ameritrade:Main:PnL
 
-    """, transactions.RunDispatch(txn), allow_incomplete=True)
+    """, a2b.RunDispatch(txn), allow_incomplete=True)
 
 
 def test_TRADE__TRADE_CORRECTION():
@@ -838,7 +838,7 @@ def test_TRADE__TRADE_CORRECTION():
         Expenses:Financial:Fees              5.74 USD
         Assets:US:Ameritrade:Main:Cash  427474.27 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
 
 def test_TRADE__OPTION_ASSIGNMENT():
@@ -875,7 +875,7 @@ def test_TRADE__OPTION_ASSIGNMENT():
         Expenses:Financial:Fees              5.74 USD
         Assets:US:Ameritrade:Main:Cash  427474.27 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
 
 def test_TRADE__CLOSE_SHORT_POSITION():
@@ -913,7 +913,7 @@ def test_TRADE__CLOSE_SHORT_POSITION():
         Assets:US:Ameritrade:Main:Cash  -378391.00 USD
         Income:US:Ameritrade:Main:PnL
 
-    """, transactions.RunDispatch(txn), allow_incomplete=True)
+    """, a2b.RunDispatch(txn), allow_incomplete=True)
 
 
 def test_RECEIVE_AND_DELIVER__STOCK_SPLIT():
@@ -946,7 +946,7 @@ def test_RECEIVE_AND_DELIVER__STOCK_SPLIT():
         Assets:US:Ameritrade:Main:NYF         -500 NYF {}
         Assets:US:Ameritrade:Main:NYF         1000 NYF {}
 
-    """, transactions.RunDispatch(txn), allow_incomplete=True)
+    """, a2b.RunDispatch(txn), allow_incomplete=True)
 
 
 
@@ -984,7 +984,7 @@ def test_RECEIVE_AND_DELIVER__REMOVAL_OF_OPTION_DUE_TO_EXPIRATION():
         Assets:US:Ameritrade:Main:Options  -1000 QQQ180209C158 {} @ 0 USD
         Income:US:Ameritrade:Main:PnL
 
-    """, transactions.RunDispatch(txn), allow_incomplete=True)
+    """, a2b.RunDispatch(txn), allow_incomplete=True)
 
 
 def test_RECEIVE_AND_DELIVER__REMOVAL_OF_OPTION_DUE_TO_EXPIRATION__negative():
@@ -1020,7 +1020,7 @@ def test_RECEIVE_AND_DELIVER__REMOVAL_OF_OPTION_DUE_TO_EXPIRATION__negative():
         Assets:US:Ameritrade:Main:Options   -1000 XSP180919P275 {} @ 0 USD
         Income:US:Ameritrade:Main:PnL
 
-    """, transactions.RunDispatch(txn), allow_incomplete=True)
+    """, a2b.RunDispatch(txn), allow_incomplete=True)
 
 
 def test_RECEIVE_AND_DELIVER__REMOVAL_OF_OPTION_DUE_TO_ASSIGNMENT():
@@ -1053,7 +1053,7 @@ def test_RECEIVE_AND_DELIVER__REMOVAL_OF_OPTION_DUE_TO_ASSIGNMENT():
         Assets:US:Ameritrade:Main:Options  -1500 SPY180817C285 {} @ 0 USD
         Income:US:Ameritrade:Main:PnL
 
-    """, transactions.RunDispatch(txn), allow_incomplete=True)
+    """, a2b.RunDispatch(txn), allow_incomplete=True)
 
 
 
@@ -1087,7 +1087,7 @@ def test_RECEIVE_AND_DELIVER__REMOVAL_OF_OPTION_DUE_TO_EXERCISE():
         Assets:US:Ameritrade:Main:Options  -600 XSP180907P290 {} @ 0 USD
         Income:US:Ameritrade:Main:PnL
 
-    """, transactions.RunDispatch(txn), allow_incomplete=True)
+    """, a2b.RunDispatch(txn), allow_incomplete=True)
 
 
 def test_TRADE__OPTION_EXERCISE():
@@ -1121,7 +1121,7 @@ def test_TRADE__OPTION_EXERCISE():
         Expenses:Financial:Commissions         19.99 USD
         Assets:US:Ameritrade:Main:Cash     173980.01 USD
 
-    """, transactions.RunDispatch(txn))
+    """, a2b.RunDispatch(txn))
 
 
 
@@ -1152,7 +1152,7 @@ def test_RECEIVE_AND_DELIVER__MANDATORY__NAME_CHANGE():
 
       2018-06-04 * "(RAD) MANDATORY - NAME CHANGE" ^99988877766
 
-    """, transactions.RunDispatch(txn), allow_incomplete=True)
+    """, a2b.RunDispatch(txn), allow_incomplete=True)
 
 
 def test_JOURNAL__MARK_TO_THE_MARKET():
@@ -1174,7 +1174,7 @@ def test_JOURNAL__MARK_TO_THE_MARKET():
            'transactionItem': {'accountId': 123456789, 'cost': 0.0},
            'transactionSubType': 'MK',
            'type': 'JOURNAL'}
-    assert transactions.RunDispatch(txn) is None
+    assert a2b.RunDispatch(txn) is None
 
 
 if __name__ == '__main__':
