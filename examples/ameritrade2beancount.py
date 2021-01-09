@@ -7,8 +7,12 @@ my accounts.
 __author__ = 'Martin Blais <blais@furius.ca>'
 
 import argparse
+import collections
 import datetime
 import logging
+import re
+import sys
+import uuid
 from decimal import Decimal
 from pprint import pprint
 from pprint import pformat
@@ -20,12 +24,17 @@ import ameritrade
 from ameritrade import options
 
 from beancount.core import data
+from beancount.core import inventory
+from beancount.core.inventory import MatchResult
 from beancount.core import flags
 from beancount.core.amount import Amount
 from beancount.core.number import D
 from beancount.core.number import ZERO
 from beancount.core.position import Cost
+from beancount.core.position import CostSpec
 from beancount.parser import printer
+from beancount.parser import booking
+from beancount.parser.options import OPTIONS_DEFAULTS
 
 
 # US dollar currency.
@@ -186,7 +195,7 @@ def CreateTransaction(txn, allow_fees=False) -> data.Transaction:
     # if 'settlementDate' in txn:
     #     fileloc['settlementDate'] = ParseDate(txn['settlementDate'])
     narration = '({}) {}'.format(Type(txn), txn['description'])
-    links = {txn['transactionId']}
+    links = {str(txn['transactionId'])}
     if not allow_fees:
         for _, value in txn['fees'].items():
             assert not value
@@ -331,6 +340,15 @@ def DoElectronicFunding(txn):
 def DoTrade(txn):
     entry = CreateTransaction(txn, allow_fees=True)
 
+    # Add the common order id as metadata, to make together multi-leg options
+    # orders.
+    match = re.match(r"([A-Z0-9]+)\.\d+", txn['orderId'])
+    if match:
+        order_id = match.group(1)
+    else:
+        order_id = txn['orderId']
+    entry.links.add('order-{}'.format(order_id))
+
     # Add commodity leg.
     item = txn['transactionItem']
     inst = item['instrument']
@@ -351,22 +369,20 @@ def DoTrade(txn):
         assert False, "Invalid asset type: {}".format(inst)
 
     is_sale = item.get('instruction', None) == 'SELL'
-    is_reduction = ((is_sale or
-                     txn['description'] == 'CLOSE SHORT POSITION') and
-                    item.get('positionEffect') != 'OPENING' and
-                    txn['description'] not in {'TRADE CORRECTION',
-                                               'OPTION ASSIGNMENT',
-                                               'OPTION EXERCISE'})
+    is_closing = item.get('positionEffect', None) == 'CLOSING'
+    # txn['description'] not in {'TRADE CORRECTION',
+    #                            'OPTION ASSIGNMENT',
+    #                            'OPTION EXERCISE'})
 
     units = Amount(amount, symbol)
     price = DF(item['price'], QP) if 'price' in item else None
     if is_sale:
         units = -units
-    if is_reduction:
-        cost = Cost(None, None, None, None)
+    if is_closing:
+        cost = CostSpec(None, None, None, None, None, False)
         entry.postings.append(Posting(account, units, cost, Amount(price, USD)))
     else:
-        cost = Cost(price, USD, entry.date, None)
+        cost = CostSpec(price, None, USD, entry.date, None, False)
         entry.postings.append(Posting(account, units, cost))
 
     # Add fees postings.
@@ -377,7 +393,7 @@ def DoTrade(txn):
     entry.postings.append(Posting(config['asset_cash'], units))
 
     # Add a P/L leg if we're closing.
-    if is_reduction:
+    if is_closing:
         entry.postings.append(Posting(config['pnl']))
 
     return entry
@@ -432,6 +448,7 @@ def DoRemovalOfOption(txn):
 def DoInternalTransfer(txn):
     if txn['netAmount'] != 0.0:
         print(txn)
+        raise ValueError(txn)
 
 
 @dispatch('RECEIVE_AND_DELIVER', 'MANDATORY - NAME CHANGE')
@@ -472,6 +489,39 @@ def DoNotImplemented(txn):
     logging.warning("Not implemented: %s", pformat(txn))
 
 
+def MatchTrades(entries: List[data.Directive]) -> List[data.Directive]:
+    # NOTE(blais): Eventually we ought to use the real functionality provided by
+    # Beancount. Note that we could add extra data in the inventory in order to
+    # keep track of the augmenting entries, and return it properly. This would
+    # work and is doable in the pure Python code today.
+    balances = collections.defaultdict(inventory.Inventory)
+    positions = {}
+
+    # Create new link sets in order to avoid mutating the inputs.
+    entries = [
+        (entry._replace(links=entry.links.copy())
+         if isinstance(entry, data.Transaction)
+         else entry)
+        for entry in entries]
+
+    # Process all transactions, adding links in-place.
+    for entry in data.filter_txns(entries):
+        for posting in entry.postings:
+            if posting.cost is None:
+                continue
+            pos, booking = balances[posting.account].add_position(posting)
+            pos_key = (posting.account, posting.units.currency)
+            if booking in {MatchResult.CREATED, MatchResult.AUGMENTED}:
+                positions[pos_key] = entry
+            elif booking == MatchResult.REDUCED:
+                opening_entry = positions[pos_key]
+                link = 'trade-{}'.format(uuid.uuid4().hex[-12:])
+                opening_entry.links.add(link)
+                entry.links.add(link)
+
+    return entries
+
+
 def main():
     argparser = argparse.ArgumentParser()
     ameritrade.add_args(argparser)
@@ -503,20 +553,28 @@ def main():
             ofile.write(pformat(txns))
 
     # Process each of the transactions.
-    new_entries = []
+    entries = []
     for txn in txns:
         # print('{:30} {}'.format(txn['type'], txn['description'])); continue
-        entries = RunDispatch(txn, args.raise_error)
-        if entries:
-            new_entries.extend(entries)
+        one_entries = RunDispatch(txn, args.raise_error)
+        if one_entries:
+            entries.extend(one_entries)
 
     # Add a final balance entry.
     balance_entry = CreateBalance(api, accountId)
     if balance_entry:
-        new_entries.append(balance_entry)
+        entries.append(balance_entry)
+
+    # Book the entries.
+    entries, balance_errors = booking.book(entries, OPTIONS_DEFAULTS.copy())
+
+    # Match up the trades we can in this subset of the history and pair them up
+    # with a common random id.
+    entries = MatchTrades(entries)
 
     # Render the accumulated entries.
-    printer.print_entries(new_entries)
+    print('plugin "beancount.plugins.auto"')
+    printer.print_entries(entries, file=sys.stdout)
 
 
 if __name__ == '__main__':
