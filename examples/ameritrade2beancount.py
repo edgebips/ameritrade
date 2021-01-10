@@ -339,6 +339,7 @@ def DoElectronicFunding(txn):
 @dispatch('TRADE', 'OPTION EXERCISE')
 def DoTrade(txn):
     entry = CreateTransaction(txn, allow_fees=True)
+    new_entries = [entry]
 
     # Add the common order id as metadata, to make together multi-leg options
     # orders.
@@ -349,8 +350,15 @@ def DoTrade(txn):
         order_id = txn['orderId']
     entry.links.add('order-{}'.format(order_id))
 
-    # Add commodity leg.
+    # Figure out if this is a sale / clkosing transaction.
     item = txn['transactionItem']
+    is_sale = item.get('instruction', None) == 'SELL'
+    is_closing = item.get('positionEffect', None) == 'CLOSING'
+    # txn['description'] not in {'TRADE CORRECTION',
+    #                            'OPTION ASSIGNMENT',
+    #                            'OPTION EXERCISE'})
+
+    # Add commodity leg.
     inst = item['instrument']
     amount = DF(item['amount'], QO)
     assetType = inst.get('assetType', None)
@@ -365,14 +373,16 @@ def DoTrade(txn):
         # size we could consider calling the API again to find out what it is.
         amount *= 100
 
+        # Open a new Commodity directive for that one option product.
+        if not is_closing:
+            meta = data.new_metadata('<ameritrade>', 0)
+            meta['name'] = inst['description']
+            meta['assetcls'] = 'Options'     # Optional
+            meta['strategy'] = 'RiskIncome'  # Optional
+            new_entries.insert(0, data.Commodity(meta, entry.date, symbol))
+
     else:
         assert False, "Invalid asset type: {}".format(inst)
-
-    is_sale = item.get('instruction', None) == 'SELL'
-    is_closing = item.get('positionEffect', None) == 'CLOSING'
-    # txn['description'] not in {'TRADE CORRECTION',
-    #                            'OPTION ASSIGNMENT',
-    #                            'OPTION EXERCISE'})
 
     units = Amount(amount, symbol)
     price = DF(item['price'], QP) if 'price' in item else None
@@ -396,7 +406,7 @@ def DoTrade(txn):
     if is_closing:
         entry.postings.append(Posting(config['pnl']))
 
-    return entry
+    return new_entries
 
 
 @dispatch('RECEIVE_AND_DELIVER', 'STOCK SPLIT')
@@ -522,6 +532,15 @@ def MatchTrades(entries: List[data.Directive]) -> List[data.Directive]:
     return entries
 
 
+def SortCommodityFirst(entries: List[data.Directive]) -> List[data.Directive]:
+    """Keep the entries in the same order and put commodity first."""
+    aug_entries = [
+        ((entry.date, (0 if isinstance(entry, data.Commodity) else 1), index), entry)
+        for index, entry in enumerate(entries)]
+    aug_entries.sort()
+    return [etuple[1] for etuple in aug_entries]
+
+
 def main():
     argparser = argparse.ArgumentParser()
     ameritrade.add_args(argparser)
@@ -574,7 +593,8 @@ def main():
 
     # Render the accumulated entries.
     print('plugin "beancount.plugins.auto"')
-    printer.print_entries(entries, file=sys.stdout)
+    sentries = SortCommodityFirst(entries)
+    printer.print_entries(sentries, file=sys.stdout)
 
 
 if __name__ == '__main__':
