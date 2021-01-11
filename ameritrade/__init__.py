@@ -15,6 +15,7 @@ __author__ = 'Martin Blais <blais@furius.ca>'
 __license__ = "GNU GPLv2"
 
 from ameritrade import api
+from ameritrade.api import AmeritradeAPI
 open = api.open
 config_from_dir = api.config_from_dir
 

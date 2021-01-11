@@ -1,0 +1,7 @@
+{
+    "link": "https://api.tdameritrade.com/v1/userprincipals/streamersubscriptionkeys",
+    "method": "GET",
+    "query_params": {
+        "accountIds": "A comma separated string of account IDs, to fetch subscription keys for each of them."
+    }
+}

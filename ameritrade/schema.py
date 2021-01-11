@@ -199,7 +199,7 @@ _VALIDATORS_BY_NAME = {
     'accountId': TypeValidator(str)
 }
 
-_SCHEMA_DIR = path.join(path.dirname(__file__), 'schemas')
+_SCHEMA_DIR = path.join(path.dirname(__file__), 'schemas_old')
 
 
 _METHODS = [

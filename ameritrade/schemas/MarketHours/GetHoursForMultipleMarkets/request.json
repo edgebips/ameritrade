@@ -1,0 +1,9 @@
+{
+    "link": "https://api.tdameritrade.com/v1/marketdata/hours",
+    "method": "GET",
+    "query_params": {
+        "apikey": "(Optional) Pass your Client ID if making an unauthenticated request",
+        "date": "\"The date for which market hours information is requested. Valid ISO-8601 formats are : yyyy-MM-dd and yyyy-MM-dd'T'HH:mm:ssz.\"",
+        "markets": "The markets for which you're requesting market hours, comma-separated. Valid markets are EQUITY, OPTION, FUTURE, BOND, or FOREX."
+    }
+}

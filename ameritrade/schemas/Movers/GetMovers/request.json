@@ -1,0 +1,9 @@
+{
+    "link": "https://api.tdameritrade.com/v1/marketdata/{index}/movers",
+    "method": "GET",
+    "query_params": {
+        "apikey": "Pass your OAuth User ID to make an unauthenticated request for delayed data.",
+        "change": "To return movers with the specified change types of percent or value",
+        "direction": "To return movers with the specified directions of up or down"
+    }
+}
