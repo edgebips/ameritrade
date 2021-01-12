@@ -108,7 +108,17 @@ def GetQueryParameters(driver: WebDriver) -> Dict[str, str]:
         if not row:
             continue
         name, description = row[0], row[2]
-        query_params[name] = description
+
+        match = re.match(r"(\S*)\s+\(required\)", name)
+        if match:
+            name = match.group(1)
+            required = True
+        else:
+            required = False
+
+        query_params[name] = {"description": description,
+                              "required": required}
+
     return query_params
 
 
@@ -170,7 +180,6 @@ def main():
         WriteFile(path.join(dirname, "example.json"), example)
 
     logging.info("Done")
-    #import pdb; pdb.set_trace()
 
 
 if __name__ == '__main__':
