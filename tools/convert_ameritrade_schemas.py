@@ -118,7 +118,7 @@ def ParseJSON(string: str) -> JSON:
 def ReadJsonWithComments(filename: str) -> JSON:
     """Read and parse a JSON file with comment separators."""
     with open(filename) as schfile:
-        print("-" * 40,filename)
+        #print("-" * 40,filename)
 
         # Check for error file.
         # TODO(blais): This should be fixed upstream.
@@ -155,20 +155,21 @@ def ReadJsonWithComments(filename: str) -> JSON:
         return output
 
 
-def ParseSchemas(schemas_dir: str) -> List[Tuple[Any, Any]]:
+def ParseSchemas(schemas_dir: str) -> List[Tuple[str, Any, Any]]:
     """Parse the schemas. Return a list of (request, response) dicts."""
     # Walk two levels of schema dirs.
     rrpairs = []
     for root, dirs, files in os.walk(schemas_dir):
         if dirs:
             continue
+        endpoint = path.basename(root)
+
         # Parse the contents of a single endpoint.
         request = ReadJson(path.join(root, 'request.json'))
-        pprint.pprint(request)
         response = ReadJsonWithComments(path.join(root, 'response.json'))
         errcodes = ReadJson(path.join(root, 'errcodes.json'))
         response['errors'] = errcodes
-        rrpairs.append((request, response))
+        rrpairs.append((endpoint, request, response))
     return rrpairs
 
 
@@ -180,7 +181,7 @@ def main():
     # Iterator over all the files downloaded by the scraping script.
     root = path.dirname(path.dirname(__file__))
     schemas_root = path.join(root, "ameritrade", "schemas")
-    for request, response in ParseSchemas(schemas_root):
+    for endpoint, request, response in ParseSchemas(schemas_root):
         pprint.pprint(request)
 
 
