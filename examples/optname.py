@@ -16,7 +16,7 @@ from ameritrade import options
 def ParseBeancountOptionSymbol(string):
     match = re.match(r'[A-Z]+', string)
     if not match:
-        raise ValueError("Invalid Beancount option symbol: {:r}".format(string))
+        raise ValueError("Invalid Beancount option symbol: {}".format(repr(string)))
     symbol = match.group(0)
     rest = string[len(symbol):]
     expiration = datetime.datetime.strptime(rest[:6], "%y%m%d").date()
@@ -60,7 +60,8 @@ def main():
                 print()
                 break
         else:
-            print("Unparseable option symbol: {:r}".format(arg))
+            print("Unparseable option symbol (not Beancount, not TD, not CUSIP): {}".format(
+                repr(arg)))
             print()
 
 
