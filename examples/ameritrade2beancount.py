@@ -136,7 +136,7 @@ def GetOptionName(inst, yeartxn=None):
     opt = options.ParseOptionCusip(inst['cusip'], yeartxn=yeartxn)
     if 'symbol' in inst:
         opts = options.ParseOptionSymbol(inst['symbol'])
-        assert opt == opts, (opt, opts)
+        assert opt == opts, (opt, opts, inst)
     return '{symbol}{expiration:%y%m%d}{side}{strike}'.format(**opt._asdict())
 
 
@@ -379,6 +379,10 @@ def DoTrade(txn):
             meta['name'] = inst['description']
             meta['assetcls'] = 'Options'     # Optional
             meta['strategy'] = 'RiskIncome'  # Optional
+            if 'cusip' in inst:
+                meta['cusip'] = inst['cusip']
+            if 'symbol' in inst:
+                meta['tdsymbol'] = inst['symbol']
             new_entries.insert(0, data.Commodity(meta, entry.date, symbol))
 
     else:
@@ -551,7 +555,9 @@ def main():
     argparser.add_argument(
         '-j', '--debug', '--json', action='store',
         help="Debug filename where to strore al the raw JSON")
-
+    argparser.add_argument('-B', '--no-booking', dest='booking',
+                           action='store_false', default=True,
+                           help="Do booking to resolve lots.")
     args = argparser.parse_args()
 
     # Open a connection and figure out the main account.
@@ -584,12 +590,13 @@ def main():
     if balance_entry:
         entries.append(balance_entry)
 
-    # Book the entries.
-    entries, balance_errors = booking.book(entries, OPTIONS_DEFAULTS.copy())
+    if args.booking:
+        # Book the entries.
+        entries, balance_errors = booking.book(entries, OPTIONS_DEFAULTS.copy())
 
-    # Match up the trades we can in this subset of the history and pair them up
-    # with a common random id.
-    entries = MatchTrades(entries)
+        # Match up the trades we can in this subset of the history and pair them up
+        # with a common random id.
+        entries = MatchTrades(entries)
 
     # Render the accumulated entries.
     print('plugin "beancount.plugins.auto"')
