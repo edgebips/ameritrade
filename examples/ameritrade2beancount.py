@@ -6,17 +6,18 @@ my accounts.
 """
 __author__ = 'Martin Blais <blais@furius.ca>'
 
+from decimal import Decimal
+from pprint import pformat
+from pprint import pprint
+from typing import List, Optional
 import argparse
 import collections
 import datetime
+import inspect
 import logging
 import re
 import sys
 import uuid
-from decimal import Decimal
-from pprint import pprint
-from pprint import pformat
-from typing import List, Optional
 
 from dateutil import parser
 
@@ -90,7 +91,7 @@ def dispatch(txntype, description):
     return deco
 
 
-def RunDispatch(txn, raise_error=False, check_not_empty=False):
+def RunDispatch(txn, balances, commodities, raise_error=False, check_not_empty=False):
     """Dispatch a transaction to its handler."""
     key = (txn['type'], txn['description'])
     try:
@@ -101,7 +102,15 @@ def RunDispatch(txn, raise_error=False, check_not_empty=False):
             raise ValueError("Unknown message: {}".format(repr(key)))
         logging.error("Ignoring message for: %s", repr(key))
     else:
-        result = handler(txn)
+        # Call the handler method.
+        signature = inspect.signature(handler)
+        kwargs = dict()
+        if 'balances' in signature.parameters:
+            kwargs['balances'] = balances
+        if 'commodities' in signature.parameters:
+            kwargs['commodities'] = commodities
+        result = handler(txn, **kwargs)
+
         if result and not isinstance(result, list):
             result = [result]
         if check_not_empty:
@@ -337,7 +346,7 @@ def DoElectronicFunding(txn):
 @dispatch('TRADE', 'OPTION ASSIGNMENT')
 @dispatch('TRADE', 'CLOSE SHORT POSITION')
 @dispatch('TRADE', 'OPTION EXERCISE')
-def DoTrade(txn):
+def DoTrade(txn, commodities):
     entry = CreateTransaction(txn, allow_fees=True)
     new_entries = [entry]
 
@@ -374,7 +383,7 @@ def DoTrade(txn):
         amount *= 100
 
         # Open a new Commodity directive for that one option product.
-        if not is_closing:
+        if not is_closing and symbol not in commodities:
             meta = data.new_metadata('<ameritrade>', 0)
             meta['name'] = inst['description']
             meta['assetcls'] = 'Options'     # Optional
@@ -383,7 +392,9 @@ def DoTrade(txn):
                 meta['cusip'] = inst['cusip']
             if 'symbol' in inst:
                 meta['tdsymbol'] = inst['symbol']
-            new_entries.insert(0, data.Commodity(meta, entry.date, symbol))
+            commodity = data.Commodity(meta, entry.date, symbol)
+            commodities[symbol] = commodity
+            new_entries.insert(0, commodity)
 
     else:
         assert False, "Invalid asset type: {}".format(inst)
@@ -423,7 +434,7 @@ def DoStockSplit(txn):
     symbol = inst['symbol']
     amt = DF(item['amount'], QO)
     account = config['asset_position'].format(symbol=symbol)
-    cost = Cost(None, None, None, None)
+    cost = CostSpec(None, None, None, None, None, False)
     entry.postings.extend([
         Posting(account, Amount(-amt, symbol), cost, None),
         Posting(account, Amount(amt * D('2'), symbol), cost, None),
@@ -435,7 +446,7 @@ def DoStockSplit(txn):
 @dispatch('RECEIVE_AND_DELIVER', 'REMOVAL OF OPTION DUE TO ASSIGNMENT')
 @dispatch('RECEIVE_AND_DELIVER', 'REMOVAL OF OPTION DUE TO EXERCISE')
 @dispatch('RECEIVE_AND_DELIVER', 'REMOVAL OF OPTION DUE TO EXPIRATION')
-def DoRemovalOfOption(txn):
+def DoRemovalOfOption(txn, balances):
     entry = CreateTransaction(txn, allow_fees=True)
 
     item = txn['transactionItem']
@@ -449,9 +460,19 @@ def DoRemovalOfOption(txn):
     amt = DF(item['amount'], QO)
     amt *= 100
 
-    cost = Cost(None, None, None, None)
+    # Find the current amount in the given account to figure out the side of the
+    # position and the appropriate side to remove. {492fa5292636}
+    balance = balances[account]
+    try:
+        pos = balance[(symbol, None)]
+        sign = -1 if pos.units.number > 0 else 1
+    except KeyError:
+        # Could not find the position. Go short.
+        sign = -1
+
+    cost = CostSpec(None, None, None, None, None, False)
     entry.postings.extend([
-        Posting(account, Amount(-amt, symbol), cost, Amount(ZERO, USD)),
+        Posting(account, Amount(sign * amt, symbol), cost, Amount(ZERO, USD)),
         Posting(config['pnl']),
         ])
 
@@ -461,7 +482,6 @@ def DoRemovalOfOption(txn):
 @dispatch('RECEIVE_AND_DELIVER', 'INTERNAL TRANSFER BETWEEN ACCOUNTS OR ACCOUNT TYPES')
 def DoInternalTransfer(txn):
     if txn['netAmount'] != 0.0:
-        print(txn)
         raise ValueError(txn)
 
 
@@ -538,9 +558,18 @@ def MatchTrades(entries: List[data.Directive]) -> List[data.Directive]:
 
 def SortCommodityFirst(entries: List[data.Directive]) -> List[data.Directive]:
     """Keep the entries in the same order and put commodity first."""
-    aug_entries = [
-        ((entry.date, (0 if isinstance(entry, data.Commodity) else 1), index), entry)
-        for index, entry in enumerate(entries)]
+    aug_entries = []
+    for index, entry in enumerate(entries):
+        if isinstance(entry, data.Transaction):
+            if re.search(r"EXPIRATION", entry.narration):
+                priority = 0
+            else:
+                priority = 2
+        elif isinstance(entry, data.Commodity):
+            priority = 1
+        else:
+            priority = 3
+        aug_entries.append(((entry.date, priority, index), entry))
     aug_entries.sort()
     return [etuple[1] for etuple in aug_entries]
 
@@ -579,11 +608,25 @@ def main():
 
     # Process each of the transactions.
     entries = []
+    balances = collections.defaultdict(inventory.Inventory)
+    commodities = {}
     for txn in txns:
         # print('{:30} {}'.format(txn['type'], txn['description'])); continue
-        one_entries = RunDispatch(txn, args.raise_error)
+        one_entries = RunDispatch(txn, balances, commodities, args.raise_error)
         if one_entries:
             entries.extend(one_entries)
+
+            # Update a balance account of just the units.
+            #
+            # This is only here so that the options removal can figure out which
+            # side is the reduction side and what sign to use on the position
+            # change. Ideally the API would provide a side indication and we
+            # wouldn't have to maintain any state at alll. {492fa5292636}
+            for entry in data.filter_txns(one_entries):
+                for posting in entry.postings:
+                    balance = balances[posting.account]
+                    if posting.units is not None:
+                        balance.add_amount(posting.units)
 
     # Add a final balance entry.
     balance_entry = CreateBalance(api, accountId)
