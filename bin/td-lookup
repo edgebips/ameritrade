@@ -13,7 +13,6 @@ import ameritrade
 
 def main():
     """Compute various vol estimates."""
-    logging.basicConfig(level=logging.INFO, format='%(levelname)-8s: %(message)s')
     parser = argparse.ArgumentParser(description=__doc__.strip())
     parser.add_argument('symbol', action='store',
                         help="TD symbol or CUSIP symbol to look up.")
