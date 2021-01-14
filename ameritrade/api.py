@@ -68,7 +68,7 @@ _Config = NamedTuple('_Config', [
 
 
 _ConfigDefaults = {
-    'redirect_uri': 'https://localhost:8444',
+    'redirect_uri': auth.DEFAULT_REDIRECT_URI,
     'timeout': 300,
     'readonly': True,
     'lazy': False,
@@ -90,8 +90,8 @@ class Config(_Config):
         return _Config.__new__(cls, *args)
 
 
-DEFAULT_DIR = os.environ.get('AMERITRADE_DIR',
-                             path.join(os.getenv('HOME'), '.ameritrade'))
+DEFAULT_CONFIG_DIR = os.environ.get(
+    'AMERITRADE_DIR', path.join(os.getenv('HOME'), '.ameritrade'))
 
 
 def config_from_dir(config_dir: Optional[str] = None, **kwargs) -> Config:
@@ -100,7 +100,7 @@ def config_from_dir(config_dir: Optional[str] = None, **kwargs) -> Config:
     # Set defaults from same default dir used in scripts.add_args().
     newargs = dict(kwargs)
     if config_dir is None:
-        config_dir = path.join(DEFAULT_DIR, 'config')
+        config_dir = DEFAULT_CONFIG_DIR
 
     # Set filenames from dir if not set.
     if newargs.get('key_file', None) is None:

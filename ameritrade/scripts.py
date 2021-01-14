@@ -20,6 +20,7 @@ import re
 from typing import Optional
 
 from ameritrade import api
+from ameritrade import auth
 
 
 def add_args(parser):
@@ -67,7 +68,7 @@ def config_from_args(args,
 
     # The config dir contains the certificate.pem and key.pem files, the
     # secrets.json file, and a client_id file.
-    config_dir = path.join(args.ameritrade_dir, 'config')
+    config_dir = args.ameritrade_dir
 
     # The cache dir contains past responses for API queries.
     cache_dir = path.join(args.ameritrade_dir, 'cache')
@@ -83,7 +84,7 @@ def config_from_args(args,
 
     return api.config_from_dir(
         config_dir=config_dir,
-        redirect_uri='https://localhost:8444',
+        redirect_uri=auth.DEFAULT_REDIRECT_URI,
         read_cache=read_cache,
         write_cache=write_cache,
         cache_dir=cache_dir if read_cache or write_cache else None,

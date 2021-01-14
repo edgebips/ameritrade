@@ -12,14 +12,18 @@ import json
 import logging
 import requests
 import socketserver
+import socket
 import ssl
 import threading
 import webbrowser
 
 
+DEFAULT_REDIRECT_URI = 'https://localhost:8444'
+
+
 def read_or_create_secrets(secrets_file: str, config):
     """Initialize the secrets file."""
-    # If there is no file, just authenticate every time.
+    # If no path to a secrets file is configured, just authenticate every time.
     if not secrets_file:
         secrets = authenticate(config)
     else:
@@ -90,26 +94,31 @@ def open_auth_browser(config):
 
 def gather_token(config):
     """Create a server, run it in a thread, wait for handler, timeout."""
+
     # An event to signal a waiter thread that we've received the token.
     event = threading.Event()
 
+    # Create an HTTPS server.
     pr = urlparse(config.redirect_uri)
     server = HTTPServer((pr.hostname, pr.port), TokenHandler,
                         config=config, event=event)
-    server.socket = ssl.wrap_socket(server.socket,
-                                    keyfile=config.key_file,
-                                    certfile=config.certificate_file,
-                                    server_side=True)
 
-    # Start server thread, wait for handler, timeout
-    with server:
-        thread = threading.Thread(target=server.serve_forever)
-        thread.daemon = True
-        thread.start()
-        server.event.wait(timeout=300)
-        server.shutdown()
-        logging.info('Server: done')
-        thread.join()
+    # Wrap the socket in SSL.
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(certfile=config.certificate_file,
+                            keyfile=config.key_file)
+    with context.wrap_socket(server.socket, server_side=True) as ssocket:
+        server.socket = ssocket
+
+        # Start server thread, wait for handler, timeout
+        with server:
+            thread = threading.Thread(target=server.serve_forever)
+            thread.daemon = True
+            thread.start()
+            server.event.wait(timeout=300)
+            server.shutdown()
+            logging.info('Server: done')
+            thread.join()
 
     return server.secrets
 

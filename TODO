@@ -1,30 +1,23 @@
 TODO:
 
+- Document better the way arguments are mapped to the request fields and query
+  parameters.
+
+- Process and honor a --verbose flag with a dedicated logger for the API and
+  change all the example scripts to use that consistently.
+
+- Document more clearly what the cache is and does, even I cannot remember after
+  all this time. Delete it actually... I don't need we really need it.
+
 - Make the construction of Config() use keyword args and use that to connect
   instead of open_with_dir(), so that we can implement ameritrade.check.
 
-- Create a script (invocable via python3 -m ameritrade.check) to test the
-  connection and print out the full configuration.
-
-- two-step is how it should be; validate the configuration, add unit tests.
+- Two-step is how it should be; validate the configuration, add unit tests.
 
 - cache_read, cache_write, as options.
 
-
-
-
-
 - This script is one that should create the configuration the first time if it
   doesn't exist.
-
-- Post a clear instructions on how to create a self-signed certificate with
-  correct paths, maybe make this automatic even, providing a script that will
-  run the commands for you if the config directory does not exist. ACTUALLY YOU
-  CAN'T DO THIS, YOU HAVE TO DOWNLOAD THE SECRETS FILE FROM THE WEBSITE, THERE'S
-  NO WAY AROUND THAT.
-
-
-
 
 - Add support for PUT and PATCH methods.
 
