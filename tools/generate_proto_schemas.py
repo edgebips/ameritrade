@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Generate protocol buffer messages from the Ameritrade JSON schemas.
 """
+# TODO(blais): DO NOT RUN. THIS ISN'T COMPLETE YET.
 
 from os import path
 from typing import Callable, Any, Iterable, Iterator, Union, Dict, List, Tuple
@@ -57,12 +58,35 @@ def ProcessResponse(clsname: str, response: Dict[str, Any]):
     return oss.getvalue()
 
 
+## TODO(blais): This work is incomplete.
 def ConvertJSONSchema(clsname: str, json_schema: Any, pr: Callable[[str], Any]) -> str:
     """Convert a JSON schema to a proto schema."""
 
+    # TODO(blais):
+    if json_schema is None:
+        return ''
+
+
     pr("message {} {{".format(clsname))
+    jdict_templates = set()
     for fname, jdict in json_schema.items():
         jtype = jdict['type']
+
+        try:
+            jdictcopy = jdict.copy()
+            if jtype == 'object':
+                if 'properties' in jdictcopy:
+                    jdictcopy['properties'] = ()
+                if 'additionalProperties' in jdictcopy:
+                    jdictcopy['additionalProperties'] = ()
+            if 'enum' in jdictcopy:
+                jdictcopy['enum'] = ()
+            jdict_templates.add(tuple(jdictcopy.items()))
+        except TypeError:
+            pprint.pprint(jdictcopy)
+            raise
+        continue
+
         pcard = 'optional'
         pdefault = None
         if jtype == 'string':
@@ -104,6 +128,11 @@ def ConvertJSONSchema(clsname: str, json_schema: Any, pr: Callable[[str], Any]) 
     pr("}")
 
 
+    for template in sorted(jdict_templates):
+        print(template)
+
+
+
 def main():
     logging.basicConfig(level=logging.INFO, format='%(levelname)-8s: %(message)s')
     parser = argparse.ArgumentParser(description=__doc__.strip())
@@ -116,7 +145,7 @@ def main():
         print("-" * 32, endpoint)
         string = ProcessResponse(endpoint, response)
         print(string)
-        break
+        #break
 
 
     # TODO(blais): This is incomplete.
