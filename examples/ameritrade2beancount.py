@@ -91,7 +91,7 @@ def dispatch(txntype, description):
     return deco
 
 
-def RunDispatch(txn, balances, commodities, raise_error=False, check_not_empty=False):
+def RunDispatch(txn, balances={}, commodities={}, raise_error=False, check_not_empty=False):
     """Dispatch a transaction to its handler."""
     key = (txn['type'], txn['description'])
     try:

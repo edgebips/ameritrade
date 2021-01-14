@@ -1,4 +1,4 @@
-# ameritrade: Python API to the TD Ameritrade Developer REST API
+# Python Bindings for TD Ameritrade Developer API
 
 ## Overview
 
@@ -47,7 +47,7 @@ This is a string that looks like this:
 
     <USERNAME>@AMER.OAUTHAP
 
-where `USERNAME` is your TD Ameritrade username all in caps.
+where `<USERNAME>` is your TD Ameritrade username all in caps.
 
 This library will expect a file with only this value in it, in
 `~/.ameritrade/client_id`. Not that you can override this default value by
@@ -100,6 +100,20 @@ either of these commands::
 
     $ ./bin/td-config
     $ python3 -m ameritrade.check
+
+## Development Assistance & Debugging
+
+When you're writing a script that fetches data from the API, it can be expensive
+to connect regularly to fetch the same data time after time. A common technique
+to reduce the iteration time and the number of server connections is to cache
+the last fetched data and to simply replay it back. Normally this is done in the
+client program, but this API supports a `cache' mode that does just this:
+
+    my_program.py --ameritrade-cache=/tmp/tdapi_cache
+
+This is intended only to ease development. The cache never gets cleared or
+updated. It's up to you to delete the files. You can also use this to find a
+copy of all the responses returned from the server.
 
 ## Schema Validation
 
