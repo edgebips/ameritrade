@@ -142,11 +142,10 @@ def Posting(account, units=None, cost=None, price=None):
 
 def GetOptionName(inst, yeartxn=None):
     """Get the encoded name of an option."""
-    opt = options.ParseOptionCusip(inst['cusip'], yeartxn=yeartxn)
     if 'symbol' in inst:
-        opts = options.ParseOptionSymbol(inst['symbol'])
-        assert opt == opts, (opt, opts, inst)
-    return '{symbol}{expiration:%y%m%d}{side}{strike}'.format(**opt._asdict())
+        return inst['symbol']
+    opt = options.ParseOptionCusip(inst['cusip'], yeartxn=yeartxn)
+    return options.MakeOptionSymbol(opt)
 
 
 def Date(txn) -> datetime.date:
@@ -243,14 +242,10 @@ def CreateBalance(api, accountId) -> data.Balance:
                         Amount(D(amt).quantize(Q), USD), None, None)
 
 
-def CreateNote(txn, account) -> data.Note:
+def CreateNote(txn, account, comment) -> data.Note:
     """Create a Note directive."""
     fileloc = data.new_metadata('<ameritrade>', 0)
     date = Date(txn)
-    # if 'settlementDate' in txn:
-    #     fileloc['settlementDate'] = ParseDate(txn['settlementDate'])
-    comment = 'Intra-Account Transfer (subAccount: {}; link: ^{}; netAmount: {})'.format(
-        txn['subAccount'], txn['transactionId'], txn['netAmount'])
     return data.Note(fileloc, date, account, comment)
 
 
@@ -390,8 +385,6 @@ def DoTrade(txn, commodities):
             meta['strategy'] = 'RiskIncome'  # Optional
             if 'cusip' in inst:
                 meta['cusip'] = inst['cusip']
-            if 'symbol' in inst:
-                meta['tdsymbol'] = inst['symbol']
             commodity = data.Commodity(meta, entry.date, symbol)
             commodities[symbol] = commodity
             new_entries.insert(0, commodity)
@@ -516,7 +509,18 @@ def DoCapitalGains(txn):
 
 @dispatch('JOURNAL', 'INTRA-ACCOUNT TRANSFER')
 def DoIntraAccountTransfer(txn):
-    return CreateNote(txn, config['asset_cash'])
+    # if 'settlementDate' in txn:
+    #     fileloc['settlementDate'] = ParseDate(txn['settlementDate'])
+    comment = 'Intra-Account Transfer (subAccount: {}; link: ^{}; netAmount: {})'.format(
+        txn['subAccount'], txn['transactionId'], txn['netAmount'])
+    return CreateNote(txn, config['asset_cash'], comment)
+
+
+@dispatch('JOURNAL', 'MISCELLANEOUS JOURNAL ENTRY')
+def DoIntraAccountTransfer(txn):
+    comment = 'Miscellaneous Journal Entry (transactionId: ^{}; netAmount: {})'.format(
+        txn['transactionId'], txn['netAmount'])
+    return CreateNote(txn, config['asset_cash'], comment)
 
 
 def DoNotImplemented(txn):

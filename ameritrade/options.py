@@ -32,8 +32,15 @@ def ParseOptionSymbol(string: str) -> Option:
     The argument is a symbol like 'SPY_081718C290' or 'HDV_021618C88'.
     The symbol name Used by TD Ameritrade API, 16 characters:
 
-      Two parts: <name>_MMDDYYS
+      Two parts: <name>_<expiration><side><strike>
 
+    where
+
+      <name> is the contract name or underlying.
+      <expiration> is the expiration date in MMDDYY format.
+      <side> is 'C' or 'P' for calls and puts, respectively.
+      <strike> is the strike price, in whatever the smallest units
+        of the contract are.
 
     """
     if '_' not in string:
