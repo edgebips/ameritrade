@@ -144,7 +144,7 @@ class AmeritradeAPI:
 
         # Disallow read-only methods.
         if config.readonly and method.http_method != 'GET':
-            raise NameError("Method {} is not allowed in safe read-only mode.".format(
+            raise NameError("Method {} is not allowed in read-only mode.".format(
                 method.name))
         else:
             # Create a method, with caching or not.
