@@ -1,5 +1,12 @@
 TODO:
 
+- Make the config argumnet to open() optional, so you can forego the full
+  configuration. By default it should operate like config_from_dir(). Simplify.
+  A one liner is king.
+
+- In order to fully test the schema, create a script to test out all the order
+  types and their responses. Generic output isn't great.
+
 - Document better the way arguments are mapped to the request fields and query
   parameters.
 

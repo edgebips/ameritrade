@@ -128,9 +128,14 @@ class AmeritradeAPI:
 
     def get_secrets(self):
         if self.secrets is None:
-            logging.info("Authenticating")
-            self.secrets = auth.read_or_create_secrets(self.config.secrets_file,
-                                                       self.config)
+            self.secrets = auth.read_or_create_secrets(self.config)
+        return self.secrets
+
+    def refresh_secrets(self):
+        if self.secrets is None:
+            return self.get_secrets()
+        else:
+            self.secrets = auth.refresh_secrets(self.config, self.secrets)
         return self.secrets
 
     def __getattr__(self, key):
@@ -190,28 +195,55 @@ class CallableMethod:
                 raise exc
 
         # Build the headers and URL path to call.
-        api = self.api.get_secrets()
-        headers = auth.get_headers(api)
+        secrets = self.api.get_secrets()
+        headers = auth.get_headers(secrets)
         path_kw = {field: kw.pop(field) for field in method.url_fields}
         path = method.path.format(**path_kw)
         url = 'https://api.tdameritrade.com/v1{}'.format(path)
         logging.info("Opening URL: %s", url)
 
         # Call the resources with parameters.
+        # TODO(blais): Clean this up with methods.
         params = {key: str(value) for key, value in kw.items()}
         if self.method.http_method == 'GET':
-            resp = requests.get(url, params=params, headers=headers)
-            return resp.json()
+            # Those methods have query params (something none of them), never a
+            # payload, but always a JSON response.
+            call = lambda: requests.get(url, params=params, headers=headers)
+            retvalue = lambda r: r.json()
+
         elif self.method.http_method == 'DELETE':
-            resp = requests.delete(url, params=params, headers=headers)
-            return resp.text
-        elif self.method.http_method == 'POST':
+            # Those methods only have the URL, no query params nor payload.
+            # Never a response body.
+            call = lambda: requests.delete(url, params=params, headers=headers)
+            retvalue = lambda r: r.text
+
+        elif self.method.http_method in {'POST', 'PUT', 'PATCH'}:
+            # These methods never have query params but all have a payload.
+            # Never a response body.
             headers['Content-Type'] = 'application/json'
-            resp = requests.post(url, json=kw['payload'], headers=headers)
-            return resp.text
+            method = getattr(requests, self.method.http_method.lower())
+            call = lambda: method(url, json=kw['payload'], headers=headers)
+            retvalue = lambda r: r.text
+
         else:
+            # TODO(blais): Implement the other methods along with their schemas.
             assert False, "Unsupported HTTP method for {}: {}".format(method.name,
                                                                       method.http_method)
+
+        # Make the first attempt to call the method.
+        resp = call()
+        if resp.status_code == requests.codes['unauthorized']:
+            # If the token is expired, refresh the token automatically and retryonce.
+            secrets = self.api.refresh_secrets()
+            resp = call()
+            if resp.status_code != requests.codes.ok:
+                # Oh well, still failed. Bail out.
+                raise IOError("HTTP {}: {} ({})".format(resp.status_code, resp.reason,
+                                                        resp.text))
+
+        # Return either JSON or text, depending on method.
+        return retvalue(resp)
+
 
 
 class CachedMethod:

@@ -3,7 +3,7 @@ __author__ = 'Martin Blais <blais@furius.ca>'
 __license__ = "GNU GPLv2"
 
 from os import path
-from typing import Dict
+from typing import Dict, Optional
 from urllib.parse import parse_qs
 from urllib.parse import urlencode
 from urllib.parse import urlparse
@@ -11,8 +11,8 @@ import http.server
 import json
 import logging
 import requests
-import socketserver
 import socket
+import socketserver
 import ssl
 import threading
 import webbrowser
@@ -21,41 +21,55 @@ import webbrowser
 DEFAULT_REDIRECT_URI = 'https://localhost:8444'
 
 
-def read_or_create_secrets(secrets_file: str, config):
+Secrets = Dict[str, str]
+
+
+def read_or_create_secrets(config) -> Secrets:
     """Initialize the secrets file."""
-    # If no path to a secrets file is configured, just authenticate every time.
-    if not secrets_file:
-        secrets = authenticate(config)
+
+    # Try to load the secrets file from disk.
+    filename = config.secrets_file
+    if filename and path.exists(filename):
+        with open(filename) as infile:
+            secrets = json.load(infile)
     else:
-        # Try to load the secrets file from disk.
-        if path.exists(secrets_file):
-            with open(secrets_file) as infile:
-                secrets = json.load(infile)
+        # We have to authenticate.
+        secrets = authenticate(config)
 
-            # Automatically re-authenticate if the token is expired.
-            if test_secrets(secrets):
-                return secrets
-            else:
-                logging.warning("Secrets expired or invalid; refreshing.")
+        # Store the updated secrets to disk for the next time.
+        if filename:
+            with open(filename, 'w') as outfile:
+                json.dump(secrets, outfile)
 
-                # Attempt to generate a refresh token.
-                secrets = refresh_token(config.client_id, secrets["refresh_token"])
-                if (isinstance(secrets, dict) and
-                    'access_token' in secrets and
-                    'refresh_token' in secrets):
-                    # Success; Override the secrets and return.
-                    with open(secrets_file, 'w') as outfile:
-                        json.dump(secrets, outfile)
-                    return secrets
-                else:
-                    logging.warning("Could not refresh access token; authenticating.")
+    return secrets
+
+
+def refresh_secrets(config, secrets: Secrets) -> Secrets:
+    """Attempt to refresh the token."""
+
+    # Attempt to generate a refresh token.
+    logging.warning("Secrets expired or invalid; refreshing.")
+    secrets = get_refresh_token(config.client_id, secrets["refresh_token"])
+    filename = config.secrets_file
+    if (isinstance(secrets, dict) and
+        'access_token' in secrets and
+        'refresh_token' in secrets):
+
+        # Success; Override the secrets and return.
+        logging.warning("Successfully refreshed authentication token.")
+        if filename:
+            with open(filename, 'w') as outfile:
+                json.dump(secrets, outfile)
+    else:
+        logging.warning("Could not refresh access token; re-authenticating.")
 
         # We have to authenticate.
         secrets = authenticate(config)
 
-        # Store the secrets to disk for the next time.
-        with open(secrets_file, 'w') as outfile:
-            json.dump(secrets, outfile)
+        # Store the updated secrets to disk for the next time.
+        if filename:
+            with open(filename, 'w') as outfile:
+                json.dump(secrets, outfile)
 
     return secrets
 
@@ -123,7 +137,7 @@ def gather_token(config):
     return server.secrets
 
 
-def refresh_token(client_id, token):
+def get_refresh_token(client_id, token):
     """Attempt to refresh the token.
 
     Args:
