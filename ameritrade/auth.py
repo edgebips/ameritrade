@@ -52,24 +52,19 @@ def refresh_secrets(config, secrets: Secrets) -> Secrets:
     secrets = get_refresh_token(config.client_id, secrets["refresh_token"])
     filename = config.secrets_file
     if (isinstance(secrets, dict) and
-        'access_token' in secrets and
-        'refresh_token' in secrets):
-
+        'access_token' in secrets and 'refresh_token' in secrets):
         # Success; Override the secrets and return.
         logging.warning("Successfully refreshed authentication token.")
-        if filename:
-            with open(filename, 'w') as outfile:
-                json.dump(secrets, outfile)
     else:
-        logging.warning("Could not refresh access token; re-authenticating.")
-
         # We have to authenticate.
+        logging.warning("Could not refresh access token; re-authenticating.")
         secrets = authenticate(config)
+        logging.warning("Successfully re-authenticated token.")
 
-        # Store the updated secrets to disk for the next time.
-        if filename:
-            with open(filename, 'w') as outfile:
-                json.dump(secrets, outfile)
+    # Store the updated secrets to disk for the next time.
+    if filename:
+        with open(filename, 'w') as outfile:
+            json.dump(secrets, outfile)
 
     return secrets
 

@@ -232,14 +232,21 @@ class CallableMethod:
 
         # Make the first attempt to call the method.
         resp = call()
-        if resp.status_code == requests.codes['unauthorized']:
-            # If the token is expired, refresh the token automatically and retryonce.
-            secrets = self.api.refresh_secrets()
-            resp = call()
-            if resp.status_code != requests.codes.ok:
+        if resp.status_code == requests.codes['unauthorized']:  # HTTP error 401
+            # This will occasionally fail for no particularly great reason;
+            # retry a number of times on another failure.
+            num_retries = 3  # TODO(blais): Add configuration.
+            for _ in range(num_retries):
+                # If the token is expired, refresh the token automatically and retryonce.
+                secrets = self.api.refresh_secrets()
+                resp = call()
+                if resp.status_code == requests.codes.ok:
+                    break
+                time.sleep(0.3)  # TODO(blais): Add configuration.
+            else:
                 # Oh well, still failed. Bail out.
-                raise IOError("HTTP {}: {} ({})".format(resp.status_code, resp.reason,
-                                                        resp.text))
+                raise IOError("HTTP Error {}: {} ({})".format(
+                    resp.status_code, resp.reason, resp.text))
 
         # Return either JSON or text, depending on method.
         return retvalue(resp)
