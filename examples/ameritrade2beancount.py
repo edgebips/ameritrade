@@ -347,12 +347,13 @@ def DoTrade(txn, commodities):
 
     # Add the common order id as metadata, to make together multi-leg options
     # orders.
-    match = re.match(r"([A-Z0-9]+)\.\d+", txn['orderId'])
-    if match:
-        order_id = match.group(1)
-    else:
-        order_id = txn['orderId']
-    entry.links.add('order-{}'.format(order_id))
+    if 'orderId' in txn:
+        match = re.match(r"([A-Z0-9]+)\.\d+", txn['orderId'])
+        if match:
+            order_id = match.group(1)
+        else:
+            order_id = txn['orderId']
+        entry.links.add('order-{}'.format(order_id))
 
     # Figure out if this is a sale / clkosing transaction.
     item = txn['transactionItem']
@@ -591,6 +592,8 @@ def main():
     argparser.add_argument('-B', '--no-booking', dest='booking',
                            action='store_false', default=True,
                            help="Do booking to resolve lots.")
+    argparser.add_argument('-e', '--end-date', action='store',
+                           help="Period of end date minus one year.")
     args = argparser.parse_args()
 
     # Open a connection and figure out the main account.
@@ -602,7 +605,18 @@ def main():
     #   endDate=datetime.date.today().isoformat())
     #   startDate='2014-01-01',
     #   endDate='2015-01-01')
-    txns = api.GetTransactions(accountId=accountId)
+    if args.end_date:
+        end_date = parser.parse(args.end_date).date()
+        start_date = end_date - datetime.timedelta(days=364)
+        start = start_date.isoformat()
+        end = end_date.isoformat()
+    else:
+        start = end = None
+    txns = api.GetTransactions(accountId=accountId,
+                               startDate=start, endDate=end)
+    if isinstance(txns, dict):
+        pprint(txns, sys.stderr)
+        return
     txns.reverse()
 
     # Optionally write out the raw original content downloaded to a file.
