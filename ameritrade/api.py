@@ -15,6 +15,7 @@ import os
 import pickle
 import re
 import requests
+import time
 
 from ameritrade import auth
 from ameritrade import schema
@@ -195,8 +196,6 @@ class CallableMethod:
                 raise exc
 
         # Build the headers and URL path to call.
-        secrets = self.api.get_secrets()
-        headers = auth.get_headers(secrets)
         path_kw = {field: kw.pop(field) for field in method.url_fields}
         path = method.path.format(**path_kw)
         url = 'https://api.tdameritrade.com/v1{}'.format(path)
@@ -208,13 +207,13 @@ class CallableMethod:
         if self.method.http_method == 'GET':
             # Those methods have query params (something none of them), never a
             # payload, but always a JSON response.
-            call = lambda: requests.get(url, params=params, headers=headers)
+            call = lambda hdrs: requests.get(url, params=params, headers=hdrs)
             retvalue = lambda r: r.json()
 
         elif self.method.http_method == 'DELETE':
             # Those methods only have the URL, no query params nor payload.
             # Never a response body.
-            call = lambda: requests.delete(url, params=params, headers=headers)
+            call = lambda hdrs: requests.delete(url, params=params, headers=hdrs)
             retvalue = lambda r: r.text
 
         elif self.method.http_method in {'POST', 'PUT', 'PATCH'}:
@@ -222,7 +221,7 @@ class CallableMethod:
             # Never a response body.
             headers['Content-Type'] = 'application/json'
             method = getattr(requests, self.method.http_method.lower())
-            call = lambda: method(url, json=kw['payload'], headers=headers)
+            call = lambda hdrs: method(url, json=kw['payload'], headers=hdrs)
             retvalue = lambda r: r.text
 
         else:
@@ -231,15 +230,18 @@ class CallableMethod:
                                                                       method.http_method)
 
         # Make the first attempt to call the method.
-        resp = call()
+        secrets = self.api.get_secrets()
+        headers = auth.get_headers(secrets)
+        resp = call(headers)
         if resp.status_code == requests.codes['unauthorized']:  # HTTP error 401
-            # This will occasionally fail for no particularly great reason;
-            # retry a number of times on another failure.
-            num_retries = 3  # TODO(blais): Add configuration.
+            # If the token is expired, refresh the token automatically and retry
+            # once, maybe even a few times, if we need some resilience for a job
+            # that needs to run all week (e.g., a monitoring job).
+            num_retries = 1  # TODO(blais): Add configuration.
             for _ in range(num_retries):
-                # If the token is expired, refresh the token automatically and retryonce.
                 secrets = self.api.refresh_secrets()
-                resp = call()
+                headers = auth.get_headers(secrets)
+                resp = call(headers)
                 if resp.status_code == requests.codes.ok:
                     break
                 time.sleep(0.3)  # TODO(blais): Add configuration.
