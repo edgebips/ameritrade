@@ -1,7 +1,8 @@
 """Support for option-specific features.
 
-The API involves two symbologies:
-- One from the internal TOS platform
+The API involves at least three symbologies:
+- One from the internal TOS platform that looks like this: "SPXW_012021P3520"
+- Another one, visiblke in TOS, that looks like this: ".SPXW210120P3520"
 - CUSIP (not sure using standard, see https://en.wikipedia.org/wiki/CUSIP)
 There's also (but unspported):
 - OCC terminology (https://help.yahoo.com/kb/SLN13884.html)

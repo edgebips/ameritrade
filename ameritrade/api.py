@@ -190,6 +190,8 @@ class CallableMethod:
             field = fieldmap[fname]
             if field.validator is None:
                 continue
+            # TODO(blais): Remove this, this isn't working. Convert schemas
+            # instead of using validators.
             exc = field.validator(value)
             if exc:
                 raise exc
