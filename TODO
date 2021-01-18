@@ -1,6 +1,6 @@
 TODO:
 
-- Make the config argumnet to open() optional, so you can forego the full
+- Make the config argument to open() optional, so you can forego the full
   configuration. By default it should operate like config_from_dir(). Simplify.
   A one liner is king.
 
@@ -27,6 +27,8 @@ TODO:
   doesn't exist.
 
 - Add support for PUT and PATCH methods.
+
+- Support the streaming API, it's completely separate.
 
 - Add argument data types to schema and check them.
 
