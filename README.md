@@ -123,3 +123,50 @@ adding full local validation of the requests & responses. See files under
 
 NOTE(2021-01-13): This is not completed yet. You can use the API today but you
 will obtain JSON converted to Python back. It's still nice enough to use.
+
+## Differences with Other Projects
+
+There are probably 50 other Git repositories with similar bindings out there.
+Probably the best of them is [Alex Golec's
+TDA-API](https://github.com/alexgolec/tda-api), which seems to have a growing
+community building up around it.
+
+This particular API distinguishes itself from those projects in a few ways:
+
+- It does not coerce the usage of threading or of async/await primitves. The API
+  runs in immediate, blocking mode. You can choose to use coroutines or even
+  threads at the level of your own program, wrapping this API.
+
+- It does not rely on Selenium. Refresh token for this API work for a very long
+  time (in the order of months) and it's the rare occasion where a browser
+  window needs to be brought up to perform authentication. For those times where
+  it's needed, I'd rather the API never even have to see your password and just
+  trigger opening a vanilla browser to the right URL and process the response
+  token with a local server. This also removes another dependency of this
+  library (it does not require your password stored anywhere; I never like
+  putting in passwords in files myself, and neither should you have to).
+
+- It cleanly separates the communication portion of the API (JSON in and out)
+  with the schema and potential wrapper and validator objects. I believe that
+  these two aspects can be easily factored from each other and this results in a
+  much smaller library (a very small one actually), easier to maintain.
+
+  What's more, is that the schema generation is (well, will be) completely
+  automated. A script scrapes down all the schemas from the TD website and
+  untangles and deduplicates the data types as much as possible. The hope is
+  that a schema validator can be implemented with automatic code-generation to
+  produce a very regular API, log files that can be parsed in other computer
+  langauges, good up-to-date request validators and perhaps even a generated API
+  for more convenient bindings.
+
+- It should eventually support logging
+
+Overall my goals is to keep this API as simple and lean as possible for
+long-term maintainability. My goals are not to build the ultimate library for
+everyone, but rather, something stable robust, up-to-date and stable that I can
+use for the long term.
+
+## Status
+
+This project is functional, but in active development as of January 2021.
+You can except some more changes during in H1 2021.

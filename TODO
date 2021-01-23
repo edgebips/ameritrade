@@ -36,3 +36,5 @@ TODO:
 
 - Implement unit tests for schema validation, and perhaps move some of it to a
   dedicated module.
+
+- Implement automatic logging of all traffic to/from the connection.
