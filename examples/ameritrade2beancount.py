@@ -38,6 +38,9 @@ from beancount.parser import booking
 from beancount.parser.options import OPTIONS_DEFAULTS
 
 
+ADD_EXTRA_METADATA = False
+
+
 # US dollar currency.
 USD = "USD"
 
@@ -382,10 +385,11 @@ def DoTrade(txn, commodities):
         if not is_closing and symbol not in commodities:
             meta = data.new_metadata('<ameritrade>', 0)
             meta['name'] = inst['description']
-            meta['assetcls'] = 'Options'     # Optional
-            meta['strategy'] = 'RiskIncome'  # Optional
-            if 'cusip' in inst:
-                meta['cusip'] = inst['cusip']
+            if add_extra_metadata:
+                meta['assetcls'] = 'Options'     # Optional
+                meta['strategy'] = 'RiskIncome'  # Optional
+                if 'cusip' in inst:
+                    meta['cusip'] = inst['cusip']
             commodity = data.Commodity(meta, entry.date, symbol)
             commodities[symbol] = commodity
             new_entries.insert(0, commodity)
