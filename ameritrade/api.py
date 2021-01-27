@@ -206,25 +206,26 @@ class CallableMethod:
         # Call the resources with parameters.
         # TODO(blais): Clean this up with methods.
         params = {key: str(value) for key, value in kw.items()}
+        extra_headers = {}
         if self.method.http_method == 'GET':
             # Those methods have query params (something none of them), never a
             # payload, but always a JSON response.
             call = lambda hdrs: requests.get(url, params=params, headers=hdrs)
-            retvalue = lambda r: r.json()
+            retvalue = lambda r: r.json() if r.text else None
 
         elif self.method.http_method == 'DELETE':
             # Those methods only have the URL, no query params nor payload.
             # Never a response body.
             call = lambda hdrs: requests.delete(url, params=params, headers=hdrs)
-            retvalue = lambda r: r.text
+            retvalue = lambda r: r.json() if r.text else None
 
         elif self.method.http_method in {'POST', 'PUT', 'PATCH'}:
             # These methods never have query params but all have a payload.
             # Never a response body.
-            headers['Content-Type'] = 'application/json'
+            extra_headers['Content-Type'] = 'application/json'
             method = getattr(requests, self.method.http_method.lower())
             call = lambda hdrs: method(url, json=kw['payload'], headers=hdrs)
-            retvalue = lambda r: r.text
+            retvalue = lambda r: r.json() if r.text else None
 
         else:
             # TODO(blais): Implement the other methods along with their schemas.
@@ -234,6 +235,7 @@ class CallableMethod:
         # Make the first attempt to call the method.
         secrets = self.api.get_secrets()
         headers = auth.get_headers(secrets)
+        headers.update(extra_headers)
         resp = call(headers)
         if resp.status_code == requests.codes['unauthorized']:  # HTTP error 401
             # If the token is expired, refresh the token automatically and retry

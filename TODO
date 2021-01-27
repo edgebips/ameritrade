@@ -1,5 +1,13 @@
 TODO:
 
+- Hide account id in logging.info().
+
+- Make changes to options symbol library:
+  * Rename to symbols.py
+  * Rename generic OptionsSymbol functions to e.g. ParseTdSymbol() functions to be explicit.
+  * Support the third type of symbol (with a leading dot).
+  * Rename Option.symbol to Option.underlying
+
 - Make the config argument to open() optional, so you can forego the full
   configuration. By default it should operate like config_from_dir(). Simplify.
   A one liner is king.
