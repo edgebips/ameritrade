@@ -27,6 +27,11 @@ Option = typing.NamedTuple('Option', [
     ])
 
 
+def IsOptionSymbol(currency: str) -> bool:
+    """Return true if the symbol is a TD sym."""
+    return bool(re.match(r"[A-Z]+_\d{6}[CP]\d+(\.\d+)?$", currency))
+
+
 def ParseOptionSymbol(string: str) -> Option:
     """Given an Ameritrade symbol for an option, parse it into its components.
 
