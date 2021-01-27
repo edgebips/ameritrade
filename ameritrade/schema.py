@@ -236,7 +236,7 @@ _METHODS = [
       'Place an order for a specific account.',
       'POST', '/accounts/{accountId}/orders',
       R('accountId'),
-      R('payload', JsonSchemaValidator('PlaceOrder'))),
+      R('payload')),
     M('ReplaceOrder',
       ("Replace an existing order for an account. The existing order will be replaced by "
        "the new order. Once replaced, the old order will be canceled and a new order will "
@@ -244,13 +244,13 @@ _METHODS = [
       'PUT', '/accounts/{accountId}/orders/{orderId}',
       R('accountId'),
       R('orderId'),
-      R('payload', JsonSchemaValidator('ReplaceOrder'))),
+      R('payload')),
     # Accounts and Trading > Saved Orders.
     M('CreateSavedOrder',
       'Save an order for a specific account.',
       'POST', '/accounts/{accountId}/savedorders',
       R('accountId'),
-      R('payload', JsonSchemaValidator('CreateSavedOrder'))),
+      R('payload')),
     M('DeleteSavedOrder',
       'Delete a specific saved order for a specific account.',
       'DELETE', '/accounts/{accountId}/savedorders/{savedOrderId}',
@@ -271,7 +271,7 @@ _METHODS = [
       'PUT', '/accounts/{accountId}/savedorders/{savedOrderId}',
       R('accountId'),
       R('savedOrderId'),
-      R('payload', JsonSchemaValidator('ReplaceSavedOrder'))),
+      R('payload')),
 
     # Accounts and Trading > Accounts.
     M('GetAccount',
