@@ -9,7 +9,7 @@ __author__ = 'Martin Blais <blais@furius.ca>'
 from decimal import Decimal
 from pprint import pformat
 from pprint import pprint
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 import argparse
 import collections
 import datetime
@@ -18,6 +18,7 @@ import logging
 import re
 import sys
 import uuid
+import pprint
 
 from dateutil import parser
 
@@ -36,13 +37,22 @@ from beancount.core.position import CostSpec
 from beancount.parser import printer
 from beancount.parser import booking
 from beancount.parser.options import OPTIONS_DEFAULTS
+from beancount import loader
 
 
 ADD_EXTRA_METADATA = False
 
 
+JSON = Any  # TODO(blais): Add proper type.p
+BalanceDict = Dict[str, inventory.Inventory]
+
+
 # US dollar currency.
 USD = "USD"
+
+
+# Standard options contract size.
+CSIZE = 100
 
 
 # Configuration file.
@@ -161,6 +171,11 @@ def GetNetAmount(txn) -> Amount:
     return Amount(DF(txn['netAmount']), config['cash_currency'])
 
 
+def GetLink(txn) -> Amount:
+    """Return the net amount of a transaction."""
+    return "td-{}".format(txn['transactionId'])
+
+
 # Short three-letter codes for types of transactions.
 _CODES = {
     'RECEIVE_AND_DELIVER'  : 'RAD',
@@ -174,14 +189,17 @@ def Type(txn):
     return _CODES[txn['type']]
 
 
-def GetMainAccount(api) -> Optional[str]:
+def GetMainAccount(api) -> Tuple[Optional[str], JSON]:
     """Fetch the account if of the main account."""
-    accounts = api.GetAccounts()
+    accounts = api.GetAccounts(fields='positions')
+    account_id = None
     for account in accounts:
         acc = next(iter(account.items()))[1]
         if acc['type'] == 'MARGIN':
-            return acc['accountId']
-    return None
+            account_id = acc['accountId']
+            positions = acc['positions']
+            break
+    return account_id, positions
 
 
 def CreateCusipMap(txns):
@@ -206,7 +224,7 @@ def CreateTransaction(txn, allow_fees=False) -> data.Transaction:
     # if 'settlementDate' in txn:
     #     fileloc['settlementDate'] = ParseDate(txn['settlementDate'])
     narration = '({}) {}'.format(Type(txn), txn['description'])
-    links = {str(txn['transactionId'])}
+    links = {GetLink(txn)}
     if not allow_fees:
         for _, value in txn['fees'].items():
             assert not value
@@ -215,6 +233,8 @@ def CreateTransaction(txn, allow_fees=False) -> data.Transaction:
                             data.EMPTY_SET, links, [])
 
 
+# TODO(blais): Review fees aggregation here. I think we want them to separate
+# accounts. You can click in TOS to view the breakdown.
 def CreateFeesPostings(txn) -> List[data.Posting]:
     """Get postings for fees."""
     postings = []
@@ -373,19 +393,22 @@ def DoTrade(txn, commodities):
     if assetType in ('EQUITY', None):
         symbol = inst['symbol']
         account = config['asset_position'].format(symbol=symbol)
+        # TODO(blais): Re-enable this in v3 when booking code has been reviewed.
+        # This triggers and error in booking, but that's how it should rendered.
+        # is_closing = True
 
     elif assetType == 'OPTION':
         symbol = GetOptionName(inst, entry.date.year)
         account = config['asset_position'].format(symbol='Options')
         # Note: The contract size isn't present. If we find varying contract
         # size we could consider calling the API again to find out what it is.
-        amount *= 100
+        amount *= CSIZE
 
         # Open a new Commodity directive for that one option product.
         if not is_closing and symbol not in commodities:
             meta = data.new_metadata('<ameritrade>', 0)
             meta['name'] = inst['description']
-            if add_extra_metadata:
+            if ADD_EXTRA_METADATA:
                 meta['assetcls'] = 'Options'     # Optional
                 meta['strategy'] = 'RiskIncome'  # Optional
                 if 'cusip' in inst:
@@ -456,7 +479,7 @@ def DoRemovalOfOption(txn, balances):
     # Note: The contract size isn't present. If we find varying contract
     # size we could consider calling the API again to find out what it is.
     amt = DF(item['amount'], QO)
-    amt *= 100
+    amt *= CSIZE
 
     # Find the current amount in the given account to figure out the side of the
     # position and the appropriate side to remove. {492fa5292636}
@@ -517,14 +540,14 @@ def DoIntraAccountTransfer(txn):
     # if 'settlementDate' in txn:
     #     fileloc['settlementDate'] = ParseDate(txn['settlementDate'])
     comment = 'Intra-Account Transfer (subAccount: {}; link: ^{}; netAmount: {})'.format(
-        txn['subAccount'], txn['transactionId'], txn['netAmount'])
+        txn['subAccount'], GetLink(txn), txn['netAmount'])
     return CreateNote(txn, config['asset_cash'], comment)
 
 
 @dispatch('JOURNAL', 'MISCELLANEOUS JOURNAL ENTRY')
 def DoIntraAccountTransfer(txn):
     comment = 'Miscellaneous Journal Entry (transactionId: ^{}; netAmount: {})'.format(
-        txn['transactionId'], txn['netAmount'])
+        GetLink(txn), txn['netAmount'])
     return CreateNote(txn, config['asset_cash'], comment)
 
 
@@ -532,7 +555,7 @@ def DoNotImplemented(txn):
     logging.warning("Not implemented: %s", pformat(txn))
 
 
-def MatchTrades(entries: List[data.Directive]) -> List[data.Directive]:
+def MatchTrades(entries: List[data.Directive]) -> Tuple[data.Entries, BalanceDict]:
     # NOTE(blais): Eventually we ought to use the real functionality provided by
     # Beancount. Note that we could add extra data in the inventory in order to
     # keep track of the augmenting entries, and return it properly. This would
@@ -562,7 +585,43 @@ def MatchTrades(entries: List[data.Directive]) -> List[data.Directive]:
                 opening_entry.links.add(link)
                 entry.links.add(link)
 
-    return entries
+    return entries, balances
+
+
+def GetExpiredOptionsPrices(positions: JSON,
+                            balances: BalanceDict) -> List[data.Price]:
+    """Produce zero prices for expired options, on the following day."""
+
+    # Create an options positions map.
+    position_map = {pos['instrument']['symbol']: pos
+                    for pos in positions
+                    if pos['instrument']['assetType'] == 'OPTION'}
+
+    price_entries = []
+    for currency, balance in balances.items():
+        for position in balance:
+            currency = position.units.currency
+            if options.IsOptionSymbol(currency):
+                opt = options.ParseOptionSymbol(currency)
+                fileloc = data.new_metadata('<ameritrade>', 0)
+
+                # Record for the next day (we're going to do this on weekends).
+                date = opt.expiration + datetime.timedelta(days=1)
+
+                # If the position is still currently held, find the appropriate
+                # price point from the list of positions.
+                try:
+                    pos = position_map[currency]
+                except KeyError:
+                    price = ZERO
+                else:
+                    quantity = Decimal(pos['longQuantity'] - pos['shortQuantity'])
+                    price = Decimal(pos['marketValue']) / (quantity * CSIZE)
+
+                price_entries.append(
+                    data.Price(fileloc, date, currency, Amount(price, USD)))
+
+    return price_entries
 
 
 def SortCommodityFirst(entries: List[data.Directive]) -> List[data.Directive]:
@@ -593,16 +652,24 @@ def main():
     argparser.add_argument(
         '-j', '--debug', '--json', action='store',
         help="Debug filename where to strore al the raw JSON")
+    argparser.add_argument(
+        '--self-contained', '--auto', action='store_true',
+        help="Insert default plugins in the output file. Not needed, almost always.")
     argparser.add_argument('-B', '--no-booking', dest='booking',
                            action='store_false', default=True,
                            help="Do booking to resolve lots.")
     argparser.add_argument('-e', '--end-date', action='store',
                            help="Period of end date minus one year.")
+
+    argparser.add_argument('-l', '--ledger', action='store',
+                           help=("Beancount ledger to remove already imported "
+                                 "transactions (optional)."))
+
     args = argparser.parse_args()
 
     # Open a connection and figure out the main account.
     api = ameritrade.open(ameritrade.config_from_args(args))
-    accountId = GetMainAccount(api)
+    accountId, positions = GetMainAccount(api)
 
     # Fetch transactions.
     # Note that the following arguments are also honored:
@@ -661,10 +728,35 @@ def main():
 
         # Match up the trades we can in this subset of the history and pair them up
         # with a common random id.
-        entries = MatchTrades(entries)
+        entries, balances = MatchTrades(entries)
+
+        # Add zero prices for expired options for which we still have non-zero
+        # positions.
+        entries.extend(GetExpiredOptionsPrices(positions, balances))
+
+    # If a Beancount ledger has been specified, open it, read it in, and remove
+    # all the transactions up to the latest one with the transaction id (as a
+    # link) that's present in the ledger.
+    if args.ledger:
+        ledger_entries, _, __ = loader.load_file(args.ledger)
+        links = {link
+                 for entry in data.filter_txns(entries)
+                 for link in (entry.links or {})
+                 if re.match(r"td-\d{9,}", link)}
+
+        entries = [entry
+                   for entry in entries
+                   if (not isinstance(entry, data.Transaction) or
+                       (isinstance(entry, data.Transaction) and
+                        not entry.links & links))]
+
+        # # Note: This assumes the links are consecutively allocated.
+        # max_link = max(links)
+        # pprint.pprint(("max_link", max_link))
 
     # Render the accumulated entries.
-    print('plugin "beancount.plugins.auto"')
+    if args.self_contained:
+        print('plugin "beancount.plugins.auto"')
     sentries = SortCommodityFirst(entries)
     printer.print_entries(sentries, file=sys.stdout)
 
