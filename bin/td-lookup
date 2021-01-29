@@ -8,21 +8,52 @@ import logging
 import pprint
 import json
 
+import petl
+petl.config.look_style = 'minimal'
+
 import ameritrade
 
 
 def main():
     """Compute various vol estimates."""
     parser = argparse.ArgumentParser(description=__doc__.strip())
+
     parser.add_argument('symbol', action='store',
                         help="TD symbol or CUSIP symbol to look up.")
+
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('-s', help='Symbol regex search',
+                       dest='projection',
+                       action='store_const', const='symbol-regex')
+    group.add_argument('-d', help='Description regex search',
+                       dest='projection',
+                       action='store_const', const='desc-regex')
+    group.add_argument('-f', help='Fundamental lookup',
+                       dest='projection',
+                       action='store_const', const='fundamental')
+
     ameritrade.add_args(parser)
     args = parser.parse_args()
     config = ameritrade.config_from_args(args)
     api = ameritrade.open(config)
 
-    resp = api.GetInstrument(cusip=args.symbol)
-    pprint.pprint(resp)
+    if args.projection is None:
+        args.projection = 'symbol-lookup'
+
+    instmap = api.SearchInstruments(symbol=args.symbol,
+                                    projection=args.projection)
+
+    if args.projection == 'fundamental':
+        for inst in instmap.values():
+            fund = inst.pop('fundamental')
+            inst.update(fund)
+        table = (petl.fromdicts(instmap.values())
+                 .transpose())
+    else:
+        table = petl.fromdicts(instmap.values())
+    print(table.lookallstr())
+
+
 
 
 if __name__ == '__main__':
