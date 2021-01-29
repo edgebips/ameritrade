@@ -24,6 +24,7 @@ from dateutil import parser
 
 import ameritrade
 from ameritrade import options
+from ameritrade import utils
 
 from beancount.core import data
 from beancount.core import inventory
@@ -187,19 +188,6 @@ _CODES = {
 def Type(txn):
     """Map a long transaction type name to a three-letter type name."""
     return _CODES[txn['type']]
-
-
-def GetMainAccount(api) -> Tuple[Optional[str], JSON]:
-    """Fetch the account if of the main account."""
-    accounts = api.GetAccounts(fields='positions')
-    account_id = None
-    for account in accounts:
-        acc = next(iter(account.items()))[1]
-        if acc['type'] == 'MARGIN':
-            account_id = acc['accountId']
-            positions = acc['positions']
-            break
-    return account_id, positions
 
 
 def CreateCusipMap(txns):
@@ -669,7 +657,8 @@ def main():
 
     # Open a connection and figure out the main account.
     api = ameritrade.open(ameritrade.config_from_args(args))
-    accountId, positions = GetMainAccount(api)
+    accountId = utils.GetMainAccount(api)
+    positions = utils.GetPositions(api, accountId)
 
     # Fetch transactions.
     # Note that the following arguments are also honored:
@@ -739,11 +728,24 @@ def main():
     # link) that's present in the ledger.
     if args.ledger:
         ledger_entries, _, __ = loader.load_file(args.ledger)
-        links = {link
-                 for entry in data.filter_txns(entries)
-                 for link in (entry.links or {})
-                 if re.match(r"td-\d{9,}", link)}
 
+        # Find the date of the last transaction in the ledger with a TD
+        # transaction id, and the full set of links to remove.
+        links = set()
+        last_date = None
+        for entry in data.filter_txns(entries):
+            for link in (entry.links or {}):
+                if re.match(r"td-\d{9,}", link):
+                    links.add(link)
+                    last_date = entry.date
+
+        # Remove all the transactions already present in the ledger.
+        #
+        # Also remove all the non-transactions with a date before that of the
+        # last linked one that was found. This allows us to remove Price and
+        # Commodity directives. (In v3, when links are available on every
+        # directive, we can just use the links.)
+        filtered_entries = []
         entries = [entry
                    for entry in entries
                    if (not isinstance(entry, data.Transaction) or

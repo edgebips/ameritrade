@@ -12,6 +12,7 @@ from typing import NamedTuple
 from decimal import Decimal
 
 import ameritrade
+from ameritrade import utils
 
 
 Option = NamedTuple('Option', [
@@ -48,15 +49,6 @@ def only(dictionary):
     return first(dictionary.values())
 
 
-def get_first_account_api(api):
-    accounts = api.GetAccounts()
-    accounts = [
-        account
-        for account in accounts
-        if any(Decimal(value) != 0 for value in only(account)['currentBalances'].values())]
-    return only(first(accounts))['accountId']
-
-
 def main():
     logging.basicConfig(level=logging.INFO, format='%(levelname)-8s: %(message)s')
     parser = argparse.ArgumentParser(description=__doc__.strip())
@@ -65,7 +57,7 @@ def main():
     config = ameritrade.config_from_args(args)
     api = ameritrade.open(config)
 
-    accountId = get_first_account_api(api)
+    accountId = utils.GetMainAccount(api)
 
     # prefs = api.GetPreferences(accountId=accountId)
     # pprint(prefs)
@@ -73,11 +65,17 @@ def main():
     # keys = api.GetStreamerSubscriptionKeys(accountIds=accountId)
     # pprint(keys)
 
-    # prin = api.GetUserPrincipals(fields='surrogateIds')
-    # pprint(prin)
+    # up = api.GetUserPrincipals(fields='surrogateIds')
+    # pprint(up)
 
     # txns = api.GetTransactions(accountId=accountId)
     # pprint(txns)
+
+    # inst = api.GetInstrument(cusip='THCX_021921P13')
+    # pprint(inst)
+
+    # insts = api.SearchInstruments(symbol='THCX_021921P13', projection='symbol-search')
+    # pprint(insts)
 
     # instruments = api.SearchInstruments(symbol='SPY', projection='symbol-search')
     # hours = api.GetHoursMultipleMarkets()
@@ -87,11 +85,11 @@ def main():
     # for o in get_options_values(api):
     #     print(o)
 
-    quotes = api.GetQuotes(symbol='VTI')
-    pprint(quotes)
+    # quotes = api.GetQuotes(symbol='VTI')
+    # pprint(quotes)
 
-    hist = api.GetPriceHistory(symbol='VTI')
-    pprint(hist)
+    # hist = api.GetPriceHistory(symbol='VTI')
+    # pprint(hist)
 
 
 if __name__ == '__main__':
