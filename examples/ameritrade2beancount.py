@@ -438,7 +438,7 @@ def DoTrade(txn, commodities):
     else:
         assert False, "Invalid asset type: {}".format(inst)
 
-    # Create number of units and price.
+    # Create number of unitsp and price.
     units = Amount(amount, symbol)
     price = DF(item['price'], QP) if 'price' in item else None
     if is_sale:
@@ -839,10 +839,11 @@ def main():
     balances = collections.defaultdict(inventory.Inventory)
     commodities = {}
     for txn in txns:
-        if args.debug_transaction and txn['transactionId'] != args.debug_transaction:
-            continue
-        else:
-            pprint.pprint(txn)
+        if args.debug_transaction:
+            if txn['transactionId'] != args.debug_transaction:
+                continue
+            else:
+                pprint.pprint(txn)
 
         # print('{:30} {}'.format(txn['type'], txn['description'])); continue
         dispatch_entries = RunDispatch(txn, balances, commodities, args.raise_error)
