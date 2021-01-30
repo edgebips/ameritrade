@@ -350,11 +350,11 @@ def DoElectronicFunding(txn):
 
 @dispatch('TRADE', 'BUY TRADE')
 @dispatch('TRADE', 'SELL TRADE')
+@dispatch('TRADE', 'SHORT SALE')
+@dispatch('TRADE', 'CLOSE SHORT POSITION')
 @dispatch('TRADE', 'TRADE CORRECTION')
 @dispatch('TRADE', 'OPTION ASSIGNMENT')
-@dispatch('TRADE', 'CLOSE SHORT POSITION')
 @dispatch('TRADE', 'OPTION EXERCISE')
-@dispatch('TRADE', 'SHORT SALE')
 def DoTrade(txn, commodities):
     entry = CreateTransaction(txn, allow_fees=True)
     new_entries = [entry]
@@ -371,18 +371,21 @@ def DoTrade(txn, commodities):
 
     # Figure out if this is a sale / clkosing transaction.
     item = txn['transactionItem']
+    inst = item['instrument']
+    assetType = inst.get('assetType', None)
+
+    # It's a sale if the instruction says so. Pretty straightforward.
     is_sale = item.get('instruction', None) == 'SELL'
-    is_closing = (item.get('positionEffect', None) == 'CLOSING' or
-                  txn['description'] == 'CLOSE SHORT POSITION')
-    # txn['description'] not in {'TRADE CORRECTION',
-    #                            'OPTION ASSIGNMENT',
-    #                            'OPTION EXERCISE'})
 
     # Add commodity leg.
-    inst = item['instrument']
     amount = DF(item['amount'], QO)
-    assetType = inst.get('assetType', None)
     if assetType in ('EQUITY', None):
+        # Short sales will never have the 'CLOSING' flag but they will have a
+        # 'SHORT SALE' description, which allows us to disambiguate them from
+        # closing sales. Buys to close short sales will have a description of
+        # 'CLOSE SHORT POSITION'.
+        is_closing = txn['description'] in {'CLOSE SHORT POSITION', 'SELL TRADE'}
+
         symbol = inst['symbol']
         account = config['asset_position'].format(symbol=symbol)
         # TODO(blais): Re-enable this in v3 when booking code has been reviewed.
@@ -390,6 +393,11 @@ def DoTrade(txn, commodities):
         # is_closing = True
 
     elif assetType == 'OPTION':
+        # Unfortunately, the 'CLOSING' flag isn't set consistently on the result
+        # of the API (this would be very helpful if it were). It's only used
+        # with options, and we only use it then.
+        is_closing = item.get('positionEffect', None) == 'CLOSING'
+
         symbol = GetOptionName(inst, entry.date.year)
         account = config['asset_position'].format(symbol='Options')
         # Note: The contract size isn't present. If we find varying contract
@@ -416,10 +424,15 @@ def DoTrade(txn, commodities):
     price = DF(item['price'], QP) if 'price' in item else None
     if is_sale:
         units = -units
+
     if is_closing:
+        # If this is a closing trade, the price is the sales price and it needs
+        # to be booked against a position. Set the price as price annotation,
+        # not cost.
         cost = CostSpec(None, None, None, None, None, False)
         entry.postings.append(Posting(account, units, cost, Amount(price, USD)))
     else:
+        # This is an opening transaction, so the price is the cost basis.
         cost = CostSpec(price, None, USD, entry.date, None, False)
         entry.postings.append(Posting(account, units, cost))
 
@@ -728,6 +741,8 @@ def main():
     if args.booking:
         # Book the entries.
         entries, balance_errors = booking.book(entries, OPTIONS_DEFAULTS.copy())
+        if balance_errors:
+            printer.print_errors(balance_errors)
 
         # Match up the trades we can in this subset of the history and pair them up
         # with a common random id.
