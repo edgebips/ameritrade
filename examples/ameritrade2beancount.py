@@ -3,6 +3,23 @@
 
 This script may contain some quirks related to how I represent transactions in
 my accounts.
+
+Tips:
+
+- Links to transaction ids are inserted as ^td-XX. To automatically detect and
+  remove previously imported transactions from a ledger, specify its filename
+  with --ledger.
+
+- If you trade options, it will be useful to group transactions by underlying
+  type as they are all related. Use the --group-by-underlying option for this.
+
+- You can disable auto-booking with --no-booking.
+
+- Unhandled transactions will automatically raise an error. To debug when
+  problems occur, you can use "-j <transaction-id>" in order to isolate
+  processing to a single transaction, or "-J" to save the original JSON
+  downloaded from TD.
+
 """
 __author__ = 'Martin Blais <blais@furius.ca>'
 
@@ -33,6 +50,7 @@ from beancount.core import flags
 from beancount.core.amount import Amount
 from beancount.core.number import D
 from beancount.core.number import ZERO
+from beancount.core.number import MISSING
 from beancount.core.position import Cost
 from beancount.core.position import CostSpec
 from beancount.parser import printer
@@ -420,6 +438,7 @@ def DoTrade(txn, commodities):
     else:
         assert False, "Invalid asset type: {}".format(inst)
 
+    # Create number of units and price.
     units = Amount(amount, symbol)
     price = DF(item['price'], QP) if 'price' in item else None
     if is_sale:
@@ -640,7 +659,7 @@ def GetExpiredOptionsPrices(positions: JSON,
 
 
 def SortCommodityFirst(entries: List[data.Directive]) -> List[data.Directive]:
-    """Keep the entries in the same order and put commodity first."""
+    """Keep the entries in the same order and put Commodity entries ahead of txns."""
     aug_entries = []
     for index, entry in enumerate(entries):
         if isinstance(entry, data.Transaction):
@@ -657,28 +676,132 @@ def SortCommodityFirst(entries: List[data.Directive]) -> List[data.Directive]:
     return [etuple[1] for etuple in aug_entries]
 
 
+def GetUnderlying(currency: str) -> Tuple[str, bool]:
+    """Get the currency itself or the underlying, if an option."""
+    if options.IsOptionSymbol(currency):
+        opt = options.ParseOptionSymbol(currency)
+        return opt.symbol, True
+    else:
+        return currency, False
+
+
+def GroupByUnderlying(entries: data.Entries) -> Dict[Tuple[bool, data.Currency],
+                                                     data.Entries]:
+    """Group entries by underlying."""
+
+    # Group entries by underlying.
+    groups = collections.defaultdict(list)
+    for entry in entries:
+        has_option = False
+        if isinstance(entry, data.Transaction):
+            # Keep just the legs with options symbols on them.
+            postings_by_under = collections.defaultdict(list)
+            for posting in entry.postings:
+                if posting.cost is None:
+                    continue
+                currency = posting.units.currency
+                p_symbol, p_has_option = GetUnderlying(posting.units.currency)
+                has_option |= p_has_option
+                postings_by_under[p_symbol].append(posting)
+
+            if len(postings_by_under) >= 2:
+                # Not handling transfers in this script.
+                continue
+            elif postings_by_under:
+                symbol = next(iter(postings_by_under.keys()))
+            else:
+                symbol = None
+
+        elif isinstance(entry, data.Price):
+            symbol, has_option = GetUnderlying(entry.currency)
+            has_option |= p_has_option
+
+        elif isinstance(entry, data.Commodity):
+            symbol = GetUnderlying(entry.currency)
+            has_option |= p_has_option
+
+        elif isinstance(entry, data.Note):
+            symbol = None
+
+        elif isinstance(entry, (data.Open, data.Balance)):
+            continue
+
+        else:
+            raise NotImplementedError("Not supported: {}".format(entry))
+
+        # Insert into relevant group.
+        groups[(has_option, symbol or "")].append(entry)
+
+    return dict(groups.items())
+
+
+def RemoveDateReductions(entries: data.Entries) -> data.Entries:
+    """When booking explicitly without the full previous state of the ledger,
+    reductions will have their date automatically inserted by the booking code.
+    In this context, where we will be processing a subset of the input (we're
+    not providing the state of the ledger prior), do not do this (remove these).
+
+    This results in transactions like this:
+
+      2021-01-28 * "(TRD) SELL TRADE"
+        Assets:US:Ameritrade:Main:FB        -15 FB {2021-01-28} @ 282.6100 USD
+        Expenses:Financial:Fees            0.09 USD
+        Assets:US:Ameritrade:Main:Cash  4239.06 USD
+
+    In the future, what we'll want to do is make the booking code accept the
+    prior state to book against, and we will (a) compute the state/balances from
+    processing the ledger, provide that to the booking code as en entry point.
+
+    In the meantime, we fixup the unnecessary dates, which would cause problems
+    when inserted in the full ledger.
+    """
+    new_entries = []
+    for entry in entries:
+        if isinstance(entry, data.Transaction):
+            new_postings = []
+            fixed = False
+            for posting in entry.postings:
+                if (posting.cost and
+                    posting.cost.number in {None, MISSING} and
+                    posting.cost.date is not None):
+                    posting = posting._replace(cost=posting.cost._replace(date=None))
+                    fixed = True
+                new_postings.append(posting)
+            if fixed:
+                entry = entry._replace(postings=new_postings)
+        new_entries.append(entry)
+    return new_entries
+
+
 def main():
     argparser = argparse.ArgumentParser()
     ameritrade.add_args(argparser)
+
     argparser.add_argument(
         '-i', '--ignore-errors', dest='raise_error', action='store_false',
         default=True,
         help="Raise an error on unhandled messages")
     argparser.add_argument(
-        '-j', '--debug', '--json', action='store',
+        '-J', '--debug-file', '--json', action='store',
         help="Debug filename where to strore al the raw JSON")
     argparser.add_argument(
-        '--self-contained', '--auto', action='store_true',
-        help="Insert default plugins in the output file. Not needed, almost always.")
+        '-j', '--debug-transaction', action='store', type=int,
+        help="Process a single transaction and print debugging data about it.")
+
+    argparser.add_argument('-e', '--end-date', action='store',
+                           help="Period of end date minus one year.")
+
     argparser.add_argument('-B', '--no-booking', dest='booking',
                            action='store_false', default=True,
                            help="Do booking to resolve lots.")
-    argparser.add_argument('-e', '--end-date', action='store',
-                           help="Period of end date minus one year.")
 
     argparser.add_argument('-l', '--ledger', action='store',
                            help=("Beancount ledger to remove already imported "
                                  "transactions (optional)."))
+
+    argparser.add_argument('-g', '--group-by-underlying', action='store_true',
+                           help=("Group the transaction output by corresponding "
+                                 "underlying. This is great for options."))
 
     args = argparser.parse_args()
 
@@ -707,7 +830,7 @@ def main():
     txns.reverse()
 
     # Optionally write out the raw original content downloaded to a file.
-    if args.debug:
+    if args.debug_file:
         with open(args.debug, 'w') as ofile:
             ofile.write(pformat(txns))
 
@@ -716,6 +839,11 @@ def main():
     balances = collections.defaultdict(inventory.Inventory)
     commodities = {}
     for txn in txns:
+        if args.debug_transaction and txn['transactionId'] != args.debug_transaction:
+            continue
+        else:
+            pprint.pprint(txn)
+
         # print('{:30} {}'.format(txn['type'], txn['description'])); continue
         dispatch_entries = RunDispatch(txn, balances, commodities, args.raise_error)
         if dispatch_entries:
@@ -744,6 +872,11 @@ def main():
         if balance_errors:
             printer.print_errors(balance_errors)
 
+        # Remove dates on reductions when they have no prices. This is an
+        # artifact of not being able to pass in prior balance state to the
+        # booking code, which we will fix in v3.
+        entries = RemoveDateReductions(entries)
+
         # Match up the trades we can in this subset of the history and pair them up
         # with a common random id.
         entries, balances = MatchTrades(entries)
@@ -751,6 +884,7 @@ def main():
         # Add zero prices for expired options for which we still have non-zero
         # positions.
         entries.extend(GetExpiredOptionsPrices(positions, balances))
+
 
     # If a Beancount ledger has been specified, open it, read it in, and remove
     # all the transactions up to the latest one with the transaction id (as a
@@ -776,15 +910,28 @@ def main():
         # directive, we can just use the links.)
         entries = [entry
                    for entry in entries
-                   if ((not isinstance(entry, data.Transaction) and entry.date >= last_date)
+                   if ((isinstance(entry, data.Transaction) and
+                        not entry.links & links)
                        or
-                       (isinstance(entry, data.Transaction) and not entry.links & links))]
+                       (not isinstance(entry, data.Transaction) and
+                        entry.date >= last_date))]
 
-    # Render the accumulated entries.
-    if args.self_contained:
-        print('plugin "beancount.plugins.auto"')
-    sentries = SortCommodityFirst(entries)
-    printer.print_entries(sentries, file=sys.stdout)
+    if args.group_by_underlying:
+        # Group the transactions by their underlying, with org-mode separators.
+        groups = GroupByUnderlying(entries)
+        for (has_option, currency), group_entries in sorted(groups.items()):
+            header = currency or "General"
+            if has_option:
+                header = "Options: {}".format(header)
+            print("** {}".format(header))
+            print()
+            printer.print_entries(data.sorted(group_entries), file=sys.stdout)
+            print()
+            print()
+    else:
+        # Render all the entries chronologically (the default).
+        sentries = SortCommodityFirst(entries)
+        printer.print_entries(sentries, file=sys.stdout)
 
 
 if __name__ == '__main__':

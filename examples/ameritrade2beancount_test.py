@@ -131,7 +131,7 @@ def test_WIRE_IN__THIRD_PARTY():
            'type': 'WIRE_IN'}
     assertEqualEntries("""
 
-      2017-08-31 * "(WIN) THIRD PARTY" ^99988877766
+      2017-08-31 * "(WIN) THIRD PARTY" ^td-99988877766
         Assets:US:MSSB:Cash             -21085.70 USD
         Assets:US:Ameritrade:Main:Cash   21085.70 USD
 
