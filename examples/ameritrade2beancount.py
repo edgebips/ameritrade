@@ -68,6 +68,7 @@ config = {
     'asset_forex'        : 'Assets:US:Ameritrade:Forex',
     'fees'               : 'Expenses:Financial:Fees',
     'commission'         : 'Expenses:Financial:Commissions',
+    'htb_fees'           : 'Expenses:Financial:Fees:HardToBorrow',
     'interest'           : 'Income:US:Ameritrade:Main:Interest',
     'dividend_nontax'    : 'Income:US:Ameritrade:Main:{symbol}:Dividend',
     'dividend'           : 'Income:US:Ameritrade:Main:{symbol}:Dividend',
@@ -112,7 +113,7 @@ def RunDispatch(txn, balances={}, commodities={}, raise_error=False, check_not_e
         handler = _DISPATCH[key]
     except KeyError:
         if raise_error:
-            pprint(txn)
+            pprint.pprint(txn)
             raise ValueError("Unknown message: {}".format(repr(key)))
         logging.error("Ignoring message for: %s", repr(key))
     else:
@@ -184,6 +185,7 @@ _CODES = {
     'WIRE_IN'              : 'WIN',
     'DIVIDEND_OR_INTEREST' : 'DOI',
     'ELECTRONIC_FUND'      : 'EFN',
+    'JOURNAL'              : 'JRN',
 }
 def Type(txn):
     """Map a long transaction type name to a three-letter type name."""
@@ -352,6 +354,7 @@ def DoElectronicFunding(txn):
 @dispatch('TRADE', 'OPTION ASSIGNMENT')
 @dispatch('TRADE', 'CLOSE SHORT POSITION')
 @dispatch('TRADE', 'OPTION EXERCISE')
+@dispatch('TRADE', 'SHORT SALE')
 def DoTrade(txn, commodities):
     entry = CreateTransaction(txn, allow_fees=True)
     new_entries = [entry]
@@ -369,7 +372,8 @@ def DoTrade(txn, commodities):
     # Figure out if this is a sale / clkosing transaction.
     item = txn['transactionItem']
     is_sale = item.get('instruction', None) == 'SELL'
-    is_closing = item.get('positionEffect', None) == 'CLOSING'
+    is_closing = (item.get('positionEffect', None) == 'CLOSING' or
+                  txn['description'] == 'CLOSE SHORT POSITION')
     # txn['description'] not in {'TRADE CORRECTION',
     #                            'OPTION ASSIGNMENT',
     #                            'OPTION EXERCISE'})
@@ -539,6 +543,16 @@ def DoIntraAccountTransfer(txn):
     return CreateNote(txn, config['asset_cash'], comment)
 
 
+@dispatch('JOURNAL', 'HARD TO BORROW FEE')
+def DoHardToBorrow(txn):
+    entry = CreateTransaction(txn)
+    units = GetNetAmount(txn)
+    return entry._replace(postings=[
+        Posting(config['htb_fees'], units),
+        Posting(config['asset_cash'], -units),
+    ])
+
+
 def DoNotImplemented(txn):
     logging.warning("Not implemented: %s", pformat(txn))
 
@@ -690,9 +704,9 @@ def main():
     commodities = {}
     for txn in txns:
         # print('{:30} {}'.format(txn['type'], txn['description'])); continue
-        one_entries = RunDispatch(txn, balances, commodities, args.raise_error)
-        if one_entries:
-            entries.extend(one_entries)
+        dispatch_entries = RunDispatch(txn, balances, commodities, args.raise_error)
+        if dispatch_entries:
+            entries.extend(dispatch_entries)
 
             # Update a balance account of just the units.
             #
@@ -700,7 +714,7 @@ def main():
             # side is the reduction side and what sign to use on the position
             # change. Ideally the API would provide a side indication and we
             # wouldn't have to maintain any state at alll. {492fa5292636}
-            for entry in data.filter_txns(one_entries):
+            for entry in data.filter_txns(dispatch_entries):
                 for posting in entry.postings:
                     balance = balances[posting.account]
                     if posting.units is not None:
@@ -733,7 +747,7 @@ def main():
         # transaction id, and the full set of links to remove.
         links = set()
         last_date = None
-        for entry in data.filter_txns(entries):
+        for entry in data.filter_txns(ledger_entries):
             for link in (entry.links or {}):
                 if re.match(r"td-\d{9,}", link):
                     links.add(link)
@@ -745,16 +759,11 @@ def main():
         # last linked one that was found. This allows us to remove Price and
         # Commodity directives. (In v3, when links are available on every
         # directive, we can just use the links.)
-        filtered_entries = []
         entries = [entry
                    for entry in entries
-                   if (not isinstance(entry, data.Transaction) or
-                       (isinstance(entry, data.Transaction) and
-                        not entry.links & links))]
-
-        # # Note: This assumes the links are consecutively allocated.
-        # max_link = max(links)
-        # pprint.pprint(("max_link", max_link))
+                   if ((not isinstance(entry, data.Transaction) and entry.date >= last_date)
+                       or
+                       (isinstance(entry, data.Transaction) and not entry.links & links))]
 
     # Render the accumulated entries.
     if args.self_contained:

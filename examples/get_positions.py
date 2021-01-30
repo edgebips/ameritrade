@@ -59,6 +59,8 @@ def main():
     dfpos = GetPositions(accounts)
     print(dfpos.to_string())
 
+    # TODO(blais): Compute beta-weighted portfolio delta.
+
 
 if __name__ == '__main__':
     main()
