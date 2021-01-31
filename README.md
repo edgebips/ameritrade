@@ -9,24 +9,24 @@ homed at this page:  https://developer.tdameritrade.com/apis
 
 The API is a Python 3 library you can call in order to access the full API via
 Python method calls. First you import the module:
-
-   import argparse
+``` python
+   import argparse  
    import ameritrade
-
+```
 Then you establish a connection at the top of your program:
-
+```python
    def main():
        parser = argparse.ArgumentParser(description=__doc__.strip())
        ameritrade.add_args(parser)
        args = parser.parse_args()
        config = ameritrade.config_from_args(args)
        api = ameritrade.open(config)
-
+```
 Finally, you make method calls to the API:
-
+```python
     instrument = api.GetInstrument("VTI")
     pprint.pprint(instrument)
-
+```
 See the [reference documentation](https://developer.tdameritrade.com/apis) for
 the full list of available functionality. The API is actually pretty nice and
 regular, with only some minor exceptions here and there.
