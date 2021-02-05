@@ -639,8 +639,8 @@ def GetExpiredOptionsPrices(positions: JSON,
                 opt = options.ParseOptionSymbol(currency)
                 fileloc = data.new_metadata('<ameritrade>', 0)
 
-                # Record for the next day (we're going to do this on weekends).
-                date = opt.expiration + datetime.timedelta(days=1)
+                # Record for the next day (we typically run this script at night).
+                date = datetime.date.today() + datetime.timedelta(days=1)
 
                 # If the position is still currently held, find the appropriate
                 # price point from the list of positions.
@@ -676,15 +676,6 @@ def SortCommodityFirst(entries: List[data.Directive]) -> List[data.Directive]:
     return [etuple[1] for etuple in aug_entries]
 
 
-def GetUnderlying(currency: str) -> Tuple[str, bool]:
-    """Get the currency itself or the underlying, if an option."""
-    if options.IsOptionSymbol(currency):
-        opt = options.ParseOptionSymbol(currency)
-        return opt.symbol, True
-    else:
-        return currency, False
-
-
 def GroupByUnderlying(entries: data.Entries) -> Dict[Tuple[bool, data.Currency],
                                                      data.Entries]:
     """Group entries by underlying."""
@@ -700,8 +691,8 @@ def GroupByUnderlying(entries: data.Entries) -> Dict[Tuple[bool, data.Currency],
                 if posting.cost is None:
                     continue
                 currency = posting.units.currency
-                p_symbol, p_has_option = GetUnderlying(posting.units.currency)
-                has_option |= p_has_option
+                p_symbol, is_option = options.GetUnderlying(posting.units.currency)
+                has_option |= is_option
                 postings_by_under[p_symbol].append(posting)
 
             if len(postings_by_under) >= 2:
@@ -713,12 +704,12 @@ def GroupByUnderlying(entries: data.Entries) -> Dict[Tuple[bool, data.Currency],
                 symbol = None
 
         elif isinstance(entry, data.Price):
-            symbol, has_option = GetUnderlying(entry.currency)
-            has_option |= p_has_option
+            symbol, is_option = options.GetUnderlying(entry.currency)
+            has_option |= is_option
 
         elif isinstance(entry, data.Commodity):
-            symbol = GetUnderlying(entry.currency)
-            has_option |= p_has_option
+            symbol, is_option = options.GetUnderlying(entry.currency)
+            has_option |= is_option
 
         elif isinstance(entry, data.Note):
             symbol = None

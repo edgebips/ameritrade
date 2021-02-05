@@ -9,6 +9,16 @@ from typing import Any, Optional
 import ameritrade as td
 
 
+ACTIVE_STATUS = frozenset({
+    'AWAITING_PARENT_ORDER',
+    'AWAITING_CONDITION',
+    'AWAITING_MANUAL_REVIEW',
+    'ACCEPTED',
+    'PENDING_ACTIVATION',
+    'QUEUED',
+    'WORKING'})
+
+
 def GetMainAccount(api: td.AmeritradeAPI, acctype: Optional[str]=None) -> str:
     """Returns the largest account of a particular type."""
     matching_accounts = []
@@ -28,13 +38,3 @@ def GetPositions(api: td.AmeritradeAPI, account_id: str) -> Any:
     account = api.GetAccount(accountId=account_id, fields='positions')
     acc = next(iter(account.items()))[1]
     return acc['positions']
-
-
-ACTIVE_STATUS = frozenset({
-    'AWAITING_PARENT_ORDER',
-    'AWAITING_CONDITION',
-    'AWAITING_MANUAL_REVIEW',
-    'ACCEPTED',
-    'PENDING_ACTIVATION',
-    'QUEUED',
-    'WORKING'})

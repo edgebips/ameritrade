@@ -14,12 +14,12 @@ from decimal import Decimal
 import collections
 import datetime
 import re
-import typing
+from typing import NamedTuple, Tuple
 
 
 # A representation of an option.
 # The side is represented by the letter 'C' or 'P'.
-Option = typing.NamedTuple('Option', [
+Option = NamedTuple('Option', [
     ('symbol', str),
     ('expiration', datetime.date),
     ('strike', Decimal),
@@ -30,6 +30,15 @@ Option = typing.NamedTuple('Option', [
 def IsOptionSymbol(currency: str) -> bool:
     """Return true if the symbol is a TD sym."""
     return bool(re.match(r"[A-Z]+_\d{6}[CP]\d+(\.\d+)?$", currency))
+
+
+def GetUnderlying(currency: str) -> Tuple[str, bool]:
+    """Get the currency itself or the underlying, if an option."""
+    if IsOptionSymbol(currency):
+        opt = ParseOptionSymbol(currency)
+        return opt.symbol, True
+    else:
+        return currency, False
 
 
 def ParseOptionSymbol(string: str) -> Option:
