@@ -284,7 +284,7 @@ class CachedMethod:
         digest = md5.hexdigest()
 
         # Test the cache.
-        cache_path = path.join(self.cache_dir, digest)
+        cache_path = path.join(self.cache_dir, "{}.json".format(digest))
         if path.exists(cache_path):
             # Cache hit.
             logging.info("{%s} Cache hit for call to %s", digest, self.method_name)
@@ -296,5 +296,5 @@ class CachedMethod:
             response = self.method(**kw)
             logging.info("{%s} Updating cache for call to %s", digest, self.method_name)
             with builtins.open(cache_path, 'w') as infile:
-                json.dump(response, infile)
+                json.dump(response, infile, sort_keys=True, indent=4)
             return response
