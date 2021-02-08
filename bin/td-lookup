@@ -7,6 +7,7 @@ import argparse
 import logging
 import pprint
 import json
+import sys
 
 import petl
 petl.config.look_style = 'minimal'
@@ -38,10 +39,14 @@ def main():
     api = ameritrade.open(config)
 
     if args.projection is None:
-        args.projection = 'symbol-lookup'
+        args.projection = 'symbol-search'
 
     instmap = api.SearchInstruments(symbol=args.symbol,
                                     projection=args.projection)
+
+    if not instmap:
+        print("(EMPTY)", file=sys.stderr)
+        return
 
     if args.projection == 'fundamental':
         for inst in instmap.values():
@@ -52,8 +57,6 @@ def main():
     else:
         table = petl.fromdicts(instmap.values())
     print(table.lookallstr())
-
-
 
 
 if __name__ == '__main__':
