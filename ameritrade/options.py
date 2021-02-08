@@ -20,6 +20,7 @@ from typing import NamedTuple, Tuple
 # A representation of an option.
 # The side is represented by the letter 'C' or 'P'.
 Option = NamedTuple('Option', [
+    # TODO(blais): This should be renamed 'underlying'. Would clarify caller code.
     ('symbol', str),
     ('expiration', datetime.date),
     ('strike', Decimal),

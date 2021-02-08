@@ -1,5 +1,17 @@
 TODO:
 
+- Convert many of the examples to td-* tools, e.g., td-cancel-all.
+
+- Rip out the schemas.
+
+- Don't apply the cache on PUT methods and other writing ones.
+
+- There ought to be a "dry_run" mode similar to readonly. I'm always building
+  this in my clients.
+
+- Add an option to "bind" a main account to the API, so that you don't have to
+  carry the accountId all over the client code.
+
 - Hide account id in logging.info().
 
 - Make changes to options symbol library:
