@@ -245,6 +245,23 @@ def CreateTransaction(txn, allow_fees=False) -> data.Transaction:
 # accounts. You can click in TOS to view the breakdown.
 def CreateFeesPostings(txn) -> List[data.Posting]:
     """Get postings for fees."""
+
+    # The fees are broken down as follows:
+    #
+    # commission    : The commission from TD.
+    # optRegFee     : Options Regulatory Fee
+    # secFee        : SEC Fee
+    # otherCharges  : Equity and Options Exchange Fees.
+    # rFee          : Don't know. Always zero.
+    # cdscFee       : Contingent Deferred Sales Charge (for Mutual Funds).
+    # additionalFee : Don't know. Always zero.
+    #
+    # regFee: This is the sum of: optRegFee, secFee, "Trading activity fee" (not presented).
+    # It could be used to calculate the trading activity fee.
+
+    assert (fees['optRegFee'] + fees['secFee']) - fees['regFee'] < Decimal('0.02'), fees
+
+
     postings = []
     fees = txn['fees']
     commission = fees.pop('commission')
@@ -271,13 +288,6 @@ def CreateBalance(api, accountId) -> data.Balance:
     return data.Balance(fileloc, date,
                         config['asset_cash'],
                         Amount(D(amt).quantize(Q), USD), None, None)
-
-
-def CreateNote(txn, account, comment) -> data.Note:
-    """Create a Note directive."""
-    fileloc = data.new_metadata('<ameritrade>', 0)
-    date = Date(txn)
-    return data.Note(fileloc, date, account, comment)
 
 
 #-------------------------------------------------------------------------------
@@ -563,16 +573,19 @@ def DoCapitalGains(txn):
 def DoIntraAccountTransfer(txn):
     # if 'settlementDate' in txn:
     #     fileloc['settlementDate'] = ParseDate(txn['settlementDate'])
-    comment = 'Intra-Account Transfer (subAccount: {}; link: ^{}; netAmount: {})'.format(
-        txn['subAccount'], GetLink(txn), txn['netAmount'])
-    return CreateNote(txn, config['asset_cash'], comment)
+    meta = data.new_metadata('<ameritrade>', 0)
+    meta['netAmount'] = GetNetAmount(txn)
+    meta['subAccount'] = txn['subAccount']
+    return data.Note(meta, Date(txn), config['asset_cash'],
+                     'Intra-Account Transfer', set(), {GetLink(txn)})
 
 
 @dispatch('JOURNAL', 'MISCELLANEOUS JOURNAL ENTRY')
-def DoIntraAccountTransfer(txn):
-    comment = 'Miscellaneous Journal Entry (transactionId: ^{}; netAmount: {})'.format(
-        GetLink(txn), txn['netAmount'])
-    return CreateNote(txn, config['asset_cash'], comment)
+def DoMiscellaneousJournalEntry(txn):
+    meta = data.new_metadata('<ameritrade>', 0)
+    meta['netAmount'] = GetNetAmount(txn)
+    return data.Note(meta, Date(txn), config['asset_cash'],
+                     'Miscellaneous Journal Entry', set(), {GetLink(txn)})
 
 
 @dispatch('JOURNAL', 'HARD TO BORROW FEE')
@@ -886,12 +899,14 @@ def main():
 
         # Find the date of the last transaction in the ledger with a TD
         # transaction id, and the full set of links to remove.
-        links = set()
+        existing_links = set()
         last_date = None
-        for entry in data.filter_txns(ledger_entries):
+        for entry in ledger_entries:
+            if not isinstance(entry, (data.Transaction, data.Note, data.Document)):
+                continue
             for link in (entry.links or {}):
                 if re.match(r"td-\d{9,}", link):
-                    links.add(link)
+                    existing_links.add(link)
                     last_date = entry.date
 
         # Remove all the transactions already present in the ledger.
@@ -900,13 +915,14 @@ def main():
         # last linked one that was found. This allows us to remove Price and
         # Commodity directives. (In v3, when links are available on every
         # directive, we can just use the links.)
-        entries = [entry
-                   for entry in entries
-                   if ((isinstance(entry, data.Transaction) and
-                        not entry.links & links)
-                       or
-                       (not isinstance(entry, data.Transaction) and
-                        entry.date >= last_date))]
+        new_entries = []
+        for entry in entries:
+            if (isinstance(entry, (data.Transaction, data.Note, data.Document)) and (entry.links & existing_links)):
+                continue
+            if not isinstance(entry, data.Transaction) and entry.date <= last_date:
+                continue
+            new_entries.append(entry)
+        entries = new_entries
 
     if args.group_by_underlying:
         # Group the transactions by their underlying, with org-mode separators.
