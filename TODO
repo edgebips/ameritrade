@@ -1,5 +1,8 @@
 TODO:
 
+- BUG: I've witnessed one case wehre secrets.json ends up with 'null' in it.
+Attend to this.
+
 - Make the config argumnet to open() optional, so you can forego the full
   configuration. By default it should operate like config_from_dir(). Simplify.
   A one liner is king.
