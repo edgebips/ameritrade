@@ -1,9 +1,32 @@
 TODO:
 
 - BUG: I've witnessed one case wehre secrets.json ends up with 'null' in it.
-Attend to this.
+  Attend to this.
 
 - Make the config argumnet to open() optional, so you can forego the full
+
+- Convert many of the examples to td-* tools, e.g., td-cancel-all.
+
+- Rip out the schemas.
+
+- Don't apply the cache on PUT methods and other writing ones.
+
+- There ought to be a "dry_run" mode similar to readonly. I'm always building
+  this in my clients.
+
+- Add an option to "bind" a main account to the API, so that you don't have to
+  carry the accountId all over the client code.
+
+- Hide account id in logging.info().
+
+- Make changes to options symbol library:
+  * Rename to symbols.py
+  * Rename generic OptionsSymbol functions to e.g. ParseTdSymbol() functions to be explicit.
+  * Support the third type of symbol (with a leading dot).
+  * Rename Option.symbol to Option.underlying
+
+- Make the config argument to open() optional, so you can forego the full
+>>>>>>> refs/remotes/origin/master
   configuration. By default it should operate like config_from_dir(). Simplify.
   A one liner is king.
 
@@ -31,9 +54,13 @@ Attend to this.
 
 - Add support for PUT and PATCH methods.
 
+- Support the streaming API, it's completely separate.
+
 - Add argument data types to schema and check them.
 
 - Support positional arguments, maybe?
 
 - Implement unit tests for schema validation, and perhaps move some of it to a
   dedicated module.
+
+- Implement automatic logging of all traffic to/from the connection.

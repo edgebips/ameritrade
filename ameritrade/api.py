@@ -3,19 +3,24 @@
 __author__ = 'Martin Blais <blais@furius.ca>'
 __license__ = "GNU GPLv2"
 
+from decimal import Decimal
 from os import path
-from os import path
-from typing import Optional
-from typing import Tuple, Dict, Optional, NamedTuple
+from typing import Tuple, Dict, Optional, NamedTuple,Optional
 import builtins
 import hashlib
-import json
 import logging
 import os
 import pickle
 import re
 import requests
 import time
+
+# We need use_decimal.
+# TODO(blais): Remove this when the default JSON gets updated to 2.1 and above.
+try:
+    import simplejson as json
+except ImportError:
+    import json
 
 from ameritrade import auth
 from ameritrade import schema
@@ -114,6 +119,20 @@ def config_from_dir(config_dir: Optional[str] = None, **kwargs) -> Config:
     return Config(**newargs)
 
 
+class JsonWrapper(dict):
+    """A convenience wrapper for JSON dicts with attribute access."""
+
+    def __getattr__(self, key):
+        try:
+            return super().__getitem__(key)
+        except KeyError as exc:
+            raise AttributeError from exc
+
+
+# TODO(blais): Make these configurable.
+JSON_KWARGS = dict(object_hook=JsonWrapper, use_decimal=True)
+
+
 # A dict of secrets. Contains the access token and Bearer type.
 Secrets = Dict[str, str]
 
@@ -206,25 +225,26 @@ class CallableMethod:
         # Call the resources with parameters.
         # TODO(blais): Clean this up with methods.
         params = {key: str(value) for key, value in kw.items()}
+        extra_headers = {}
         if self.method.http_method == 'GET':
             # Those methods have query params (something none of them), never a
             # payload, but always a JSON response.
             call = lambda hdrs: requests.get(url, params=params, headers=hdrs)
-            retvalue = lambda r: r.json()
+            retvalue = lambda r: r.json(**JSON_KWARGS) if r.text else None
 
         elif self.method.http_method == 'DELETE':
             # Those methods only have the URL, no query params nor payload.
             # Never a response body.
             call = lambda hdrs: requests.delete(url, params=params, headers=hdrs)
-            retvalue = lambda r: r.text
+            retvalue = lambda r: r.json(**JSON_KWARGS) if r.text else None
 
         elif self.method.http_method in {'POST', 'PUT', 'PATCH'}:
             # These methods never have query params but all have a payload.
             # Never a response body.
-            headers['Content-Type'] = 'application/json'
+            extra_headers['Content-Type'] = 'application/json'
             method = getattr(requests, self.method.http_method.lower())
             call = lambda hdrs: method(url, json=kw['payload'], headers=hdrs)
-            retvalue = lambda r: r.text
+            retvalue = lambda r: r.json(**JSON_KWARGS) if r.text else None
 
         else:
             # TODO(blais): Implement the other methods along with their schemas.
@@ -234,6 +254,7 @@ class CallableMethod:
         # Make the first attempt to call the method.
         secrets = self.api.get_secrets()
         headers = auth.get_headers(secrets)
+        headers.update(extra_headers)
         resp = call(headers)
         if resp.status_code == requests.codes['unauthorized']:  # HTTP error 401
             # If the token is expired, refresh the token automatically and retry
@@ -282,17 +303,17 @@ class CachedMethod:
         digest = md5.hexdigest()
 
         # Test the cache.
-        cache_path = path.join(self.cache_dir, digest)
+        cache_path = path.join(self.cache_dir, "{}.json".format(digest))
         if path.exists(cache_path):
             # Cache hit.
             logging.info("{%s} Cache hit for call to %s", digest, self.method_name)
             with builtins.open(cache_path, 'r') as infile:
-                return json.load(infile)
+                return json.load(infile, **JSON_KWARGS)
         else:
             # Cache miss.
             logging.info("{%s} Cache miss for call to %s", digest, self.method_name)
             response = self.method(**kw)
             logging.info("{%s} Updating cache for call to %s", digest, self.method_name)
             with builtins.open(cache_path, 'w') as infile:
-                json.dump(response, infile)
+                json.dump(response, infile, sort_keys=True, indent=4, use_decimal=True)
             return response
