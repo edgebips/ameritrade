@@ -4,31 +4,27 @@
 __author__ = 'Martin Blais <blais@furius.ca>'
 
 import argparse
-import collections
-import datetime
 import logging
-import math
-import itertools
-import pprint
-import re
-import time
-from typing import Any, Optional, Tuple
+from typing import Sequence
 
 import ameritrade as td
 from ameritrade import utils
 
 
-def CancelAllOrders(api, account_id, statuses=None):
-  if statuses is None:
-    statuses = utils.ACTIVE_STATUS
-  orders = api.GetOrdersByPath(accountId=account_id)
-  for order in orders:
-    if order['status'] not in statuses:
-        continue
-    logging.info("Canceling: %s", order['orderId'])
-    resp = api.CancelOrder(accountId=account_id, orderId=order['orderId'])
-    if resp:
-        raise ValueError(resp)
+def CancelAllOrders(api: td.AmeritradeAPI,
+                    account_id: str,
+                    statuses: Sequence[str] = None):
+    """Cancel all active orders."""
+    if statuses is None:
+        statuses = utils.ACTIVE_STATUS
+    orders = api.GetOrdersByPath(accountId=account_id)
+    for order in orders:
+        if order['status'] not in statuses:
+            continue
+        logging.info("Canceling: %s", order['orderId'])
+        resp = api.CancelOrder(accountId=account_id, orderId=order['orderId'])
+        if resp:
+            raise ValueError(resp)
 
 
 def main():
