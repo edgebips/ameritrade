@@ -258,12 +258,10 @@ def CreateFeesPostings(txn) -> List[data.Posting]:
     #
     # regFee: This is the sum of: optRegFee, secFee, "Trading activity fee" (not presented).
     # It could be used to calculate the trading activity fee.
-
+    fees = txn['fees']
     assert (fees['optRegFee'] + fees['secFee']) - fees['regFee'] < Decimal('0.02'), fees
 
-
     postings = []
-    fees = txn['fees']
     commission = fees.pop('commission')
     if commission:
         postings.append(Posting(config['commission'], Amount(DF(commission), USD)))
