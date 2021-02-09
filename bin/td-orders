@@ -19,8 +19,13 @@ def main():
 
     orders = api.GetOrdersByPath(accountId=account_id)
     for order in orders:
-        if order['status'] in utils.ACTIVE_STATUS:
-            pprint.pprint(order)
+        if 'status' in order:
+            if order['status'] in utils.ACTIVE_STATUS:
+                pprint.pprint(order)
+        elif 'childOrderStrategies' in order:
+            if any(child['status'] in utils.ACTIVE_STATUS
+                   for child in order['childOrderStrategies']):
+                pprint.pprint(order)
 
 
 if __name__ == '__main__':
