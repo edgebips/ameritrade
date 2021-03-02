@@ -26,7 +26,7 @@ __author__ = 'Martin Blais <blais@furius.ca>'
 from decimal import Decimal
 from pprint import pformat
 from pprint import pprint
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 import argparse
 import collections
 import datetime
@@ -53,6 +53,7 @@ from beancount.core.number import ZERO
 from beancount.core.number import MISSING
 from beancount.core.position import Cost
 from beancount.core.position import CostSpec
+from beancount.core import getters
 from beancount.parser import printer
 from beancount.parser import booking
 from beancount.parser.options import OPTIONS_DEFAULTS
@@ -82,8 +83,8 @@ config = {
     'asset_cash'         : 'Assets:US:Ameritrade:Main:Cash',
     'asset_money_market' : 'Assets:US:Ameritrade:Main:MMDA1',
     'asset_position'     : 'Assets:US:Ameritrade:Main:{symbol}',
-    'option_position'    : 'Assets:US:Ameritrade:Main:Options',
     'asset_forex'        : 'Assets:US:Ameritrade:Forex',
+    'asset_futures'      : 'Assets:US:Ameritrade:Futures:Cash',
     'fees'               : 'Expenses:Financial:Fees',
     'commission'         : 'Expenses:Financial:Commissions',
     'htb_fees'           : 'Expenses:Financial:Fees:HardToBorrow',
@@ -201,6 +202,7 @@ _CODES = {
     'RECEIVE_AND_DELIVER'  : 'RAD',
     'TRADE'                : 'TRD',
     'WIRE_IN'              : 'WIN',
+    'WIRE_OUT'             : 'WOU',
     'DIVIDEND_OR_INTEREST' : 'DOI',
     'ELECTRONIC_FUND'      : 'EFN',
     'JOURNAL'              : 'JRN',
@@ -321,6 +323,7 @@ def DoMoneyMarketInterest(txn):
 
 @dispatch('WIRE_IN', 'THIRD PARTY')
 @dispatch('WIRE_IN', 'WIRE INCOMING')
+@dispatch('WIRE_OUT', 'WIRE OUTGOING (ACD WIRE DISBURSEMENTS)')
 def DoThirdParty(txn):
     entry = CreateTransaction(txn)
     units = GetNetAmount(txn)
@@ -383,7 +386,7 @@ def DoElectronicFunding(txn):
 @dispatch('TRADE', 'OPTION EXERCISE')
 def DoTrade(txn, commodities):
     entry = CreateTransaction(txn, allow_fees=True)
-    new_entries = [entry]
+    new_entries = []
 
     # Add the common order id as metadata, to make together multi-leg options
     # orders.
@@ -452,16 +455,19 @@ def DoTrade(txn, commodities):
     if is_sale:
         units = -units
 
+    entry = entry._replace(tags=set(entry.tags))
     if is_closing:
         # If this is a closing trade, the price is the sales price and it needs
         # to be booked against a position. Set the price as price annotation,
         # not cost.
         cost = CostSpec(None, None, None, None, None, False)
         entry.postings.append(Posting(account, units, cost, Amount(price, USD)))
+        entry.tags.add('closing')
     else:
         # This is an opening transaction, so the price is the cost basis.
         cost = CostSpec(price, None, USD, entry.date, None, False)
         entry.postings.append(Posting(account, units, cost))
+        entry.tags.add('opening')
 
     # Add fees postings.
     entry.postings.extend(CreateFeesPostings(txn))
@@ -474,6 +480,7 @@ def DoTrade(txn, commodities):
     if is_closing:
         entry.postings.append(Posting(config['pnl']))
 
+    new_entries.append(entry)
     return new_entries
 
 
@@ -593,6 +600,18 @@ def DoHardToBorrow(txn):
     return entry._replace(postings=[
         Posting(config['htb_fees'], units),
         Posting(config['asset_cash'], -units),
+    ])
+
+
+
+@dispatch('JOURNAL', 'TRANSFER TO FUTURES ACCOUNT')
+@dispatch('JOURNAL', 'TRANSFER FROM FUTURES ACCOUNT')
+def DoTransferFutures(txn):
+    entry = CreateTransaction(txn)
+    units = GetNetAmount(txn)
+    return entry._replace(postings=[
+        Posting(config['asset_futures'], -units),
+        Posting(config['asset_cash'], units),
     ])
 
 
@@ -775,6 +794,23 @@ def RemoveDateReductions(entries: data.Entries) -> data.Entries:
     return new_entries
 
 
+def CreateOpenDirectives(entries: data.Entries,
+                         booking_methods: Dict[data.Account, str]) -> List[data.Open]:
+    """Create all required Open directives."""
+    first_date = entries[0].date
+    oc_map = getters.get_account_open_close(entries)
+    open_directives = []
+    for entry in data.filter_txns(entries):
+        for posting in entry.postings:
+            if posting.account in oc_map:
+                continue
+            method = booking_methods.get(posting.account, None)
+            meta = data.new_metadata('<ameritrade>', 0)
+            open_directives.append(
+                data.Open(meta, first_date, posting.account, None, method))
+    return open_directives
+
+
 def main():
     argparser = argparse.ArgumentParser()
     ameritrade.add_args(argparser)
@@ -864,10 +900,12 @@ def main():
                     if posting.units is not None:
                         balance.add_amount(posting.units)
 
-    # Add a final balance entry.
-    balance_entry = CreateBalance(api, accountId)
-    if balance_entry:
-        entries.append(balance_entry)
+    # Create all the missing Open directives, and make sure the options account
+    # has a booking method permissive for multiple options positions.
+    options_account = config['asset_position'].format(symbol='Options')
+    methods = {options_account: data.Booking.STRICT_WITH_SIZE}
+    open_directives = CreateOpenDirectives(entries, methods)
+    entries[0:0] = open_directives
 
     if args.booking:
         # Book the entries.
@@ -887,7 +925,6 @@ def main():
         # Add zero prices for expired options for which we still have non-zero
         # positions.
         entries.extend(GetExpiredOptionsPrices(positions, balances))
-
 
     # If a Beancount ledger has been specified, open it, read it in, and remove
     # all the transactions up to the latest one with the transaction id (as a
@@ -915,12 +952,18 @@ def main():
         # directive, we can just use the links.)
         new_entries = []
         for entry in entries:
-            if (isinstance(entry, (data.Transaction, data.Note, data.Document)) and (entry.links & existing_links)):
+            if (isinstance(entry, (data.Transaction, data.Note, data.Document)) and
+                (entry.links & existing_links)):
                 continue
-            if not isinstance(entry, data.Transaction) and entry.date <= last_date:
+            if not isinstance(entry, (data.Transaction, data.Note)) and entry.date <= last_date:
                 continue
             new_entries.append(entry)
         entries = new_entries
+
+    # Add a final balance entry.
+    balance_entry = CreateBalance(api, accountId)
+    if balance_entry:
+        entries.append(balance_entry)
 
     if args.group_by_underlying:
         # Group the transactions by their underlying, with org-mode separators.

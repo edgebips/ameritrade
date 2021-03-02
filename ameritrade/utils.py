@@ -4,19 +4,12 @@ __author__ = 'Martin Blais <blais@furius.ca>'
 __license__ = "GNU GPLv2"
 
 
-from typing import Any, Optional
+from typing import Any, Dict, Optional, Union
 
 import ameritrade as td
 
 
-ACTIVE_STATUS = frozenset({
-    'AWAITING_PARENT_ORDER',
-    'AWAITING_CONDITION',
-    'AWAITING_MANUAL_REVIEW',
-    'ACCEPTED',
-    'PENDING_ACTIVATION',
-    'QUEUED',
-    'WORKING'})
+JSON = Dict[str, Union[str, float, int, 'JSON']]
 
 
 def GetMainAccount(api: td.AmeritradeAPI, acctype: Optional[str]=None) -> str:
@@ -38,3 +31,25 @@ def GetPositions(api: td.AmeritradeAPI, account_id: str) -> Any:
     account = api.GetAccount(accountId=account_id, fields='positions')
     acc = next(iter(account.items()))[1]
     return acc['positions']
+
+
+ACTIVE_STATUS = frozenset({
+    'AWAITING_PARENT_ORDER',
+    'AWAITING_CONDITION',
+    'AWAITING_MANUAL_REVIEW',
+    'ACCEPTED',
+    'PENDING_ACTIVATION',
+    'QUEUED',
+    'WORKING'})
+
+
+def IsOrderActive(order: JSON) -> bool:
+    """Predicate for when an order is active."""
+    if 'status' in order:
+        if order['status'] in ACTIVE_STATUS:
+            return True
+    if 'childOrderStrategies' in order:
+        if any(child['status'] in ACTIVE_STATUS
+               for child in order['childOrderStrategies']):
+            return True
+    return False

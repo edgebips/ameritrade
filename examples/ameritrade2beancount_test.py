@@ -160,7 +160,7 @@ def test_WIRE_IN__WIRE_INCOMING():
            'type': 'WIRE_IN'}
     assertEqualEntries("""
 
-      2017-01-19 * "(WIN) WIRE INCOMING" ^99988877766
+      2017-01-19 * "(WIN) WIRE INCOMING" ^td-99988877766
         Assets:US:MSSB:Cash             -79980.00 USD
         Assets:US:Ameritrade:Main:Cash   79980.00 USD
 
@@ -194,7 +194,7 @@ def test_RECEIVE_AND_DELIVER__CASH_ALTERNATIVES_INTEREST():
            'type': 'RECEIVE_AND_DELIVER'}
     assertEqualEntries("""
 
-      2017-09-01 * "(RAD) CASH ALTERNATIVES INTEREST" ^99988877766
+      2017-09-01 * "(RAD) CASH ALTERNATIVES INTEREST" ^td-99988877766
         Income:US:Ameritrade:Main:Interest  -1.24 USD
         Assets:US:Ameritrade:Main:Cash       1.24 USD
 
@@ -222,7 +222,7 @@ def test_DIVIDEND_OR_INTEREST__FREE_BALANCE_INTEREST_ADJUSTMENT():
            'type': 'DIVIDEND_OR_INTEREST'}
     assertEqualEntries("""
 
-      2017-09-01 * "(DOI) FREE BALANCE INTEREST ADJUSTMENT" ^99988877766
+      2017-09-01 * "(DOI) FREE BALANCE INTEREST ADJUSTMENT" ^td-99988877766
         Income:US:Ameritrade:Main:Misc  -0.01 USD
         Assets:US:Ameritrade:Main:Cash   0.01 USD
 
@@ -255,7 +255,7 @@ def test_DIVIDEND_OR_INTEREST__ORDINARY_DIVIDEND():
            'type': 'DIVIDEND_OR_INTEREST'}
     assertEqualEntries("""
 
-      2017-09-08 * "(DOI) ORDINARY DIVIDEND" ^99988877766
+      2017-09-08 * "(DOI) ORDINARY DIVIDEND" ^td-99988877766
         Income:US:Ameritrade:Main:NYF:Dividend  -110.11 USD
         Assets:US:Ameritrade:Main:Cash           110.11 USD
 
@@ -287,7 +287,7 @@ def test_DIVIDEND_OR_INTEREST__NON_TAXABLE_DIVIDENDS():
            'type': 'DIVIDEND_OR_INTEREST'}
     assertEqualEntries("""
 
-      2017-10-06 * "(DOI) NON-TAXABLE DIVIDENDS" ^99988877766
+      2017-10-06 * "(DOI) NON-TAXABLE DIVIDENDS" ^td-99988877766
         Income:US:Ameritrade:Main:NYF:Dividend  -112.02 USD
         Assets:US:Ameritrade:Main:Cash           112.02 USD
 
@@ -320,7 +320,7 @@ def test_DIVIDEND_OR_INTEREST__LONG_TERM_GAIN_DISTRIBUTION():
            'type': 'DIVIDEND_OR_INTEREST'}
     assertEqualEntries("""
 
-      2017-12-28 * "(DOI) LONG TERM GAIN DISTRIBUTION" ^99988877766
+      2017-12-28 * "(DOI) LONG TERM GAIN DISTRIBUTION" ^td-99988877766
         Income:US:Ameritrade:Main:NYF:Dividend  -52.89 USD
         Assets:US:Ameritrade:Main:Cash           52.89 USD
 
@@ -350,7 +350,7 @@ def test_ELECTRONIC_FUND__CLIENT_REQUESTED_ELECTRONIC_FUNDING_RECEIPT_FUNDS_NOW(
            'type': 'ELECTRONIC_FUND'}
     assertEqualEntries("""
 
-      2017-10-10 * "(EFN) CLIENT REQUESTED ELECTRONIC FUNDING RECEIPT (FUNDS NOW)" ^99988877766
+      2017-10-10 * "(EFN) CLIENT REQUESTED ELECTRONIC FUNDING RECEIPT (FUNDS NOW)" ^td-99988877766
         Assets:US:TD:Checking           -20000.00 USD
         Assets:US:Ameritrade:Main:Cash   20000.00 USD
 
@@ -380,7 +380,7 @@ def test_ELECTRONIC_FUND__CLIENT_REQUESTED_ELECTRONIC_FUNDING_DISBURSEMENT_FUNDS
            'type': 'ELECTRONIC_FUND'}
     assertEqualEntries("""
 
-      2018-07-23 * "(EFN) CLIENT REQUESTED ELECTRONIC FUNDING DISBURSEMENT (FUNDS NOW)" ^99988877766
+      2018-07-23 * "(EFN) CLIENT REQUESTED ELECTRONIC FUNDING DISBURSEMENT (FUNDS NOW)" ^td-99988877766
         Assets:US:TD:Checking            4700.00 USD
         Assets:US:Ameritrade:Main:Cash  -4700.00 USD
 
@@ -417,8 +417,8 @@ def test_TRADE__BUY_TRADE__EQUITY():
            'type': 'TRADE'}
     assertEqualEntries("""
 
-      2017-12-08 * "(TRD) BUY TRADE" ^99988877766
-        Assets:US:Ameritrade:Main:NYF        100 NYF {55.7850 USD}
+      2017-12-08 * "(TRD) BUY TRADE" #opening ^order-T1646318287 ^td-99988877766
+        Assets:US:Ameritrade:Main:NYF        100 NYF {55.7850 USD, 2017-12-08}
         Expenses:Financial:Commissions      6.95 USD
         Assets:US:Ameritrade:Main:Cash  -5585.45 USD
 
@@ -453,10 +453,10 @@ def test_TRADE__BUY_TRADE__EQUITY():
            'type': 'TRADE'}
     assertEqualEntries("""
 
-      2018-08-30 * "(TRD) BUY TRADE" ^99988877766
-        Assets:US:Ameritrade:Main:FINX        500 FINX {29.2296 USD, 2018-08-30}
-        Expenses:Financial:Commissions       4.95 USD
-        Assets:US:Ameritrade:Main:Cash  -14619.75 USD
+      2017-12-08 * "(TRD) BUY TRADE" #opening ^order-T1646318287 ^td-99988877766
+        Assets:US:Ameritrade:Main:NYF        100 NYF {55.7850 USD, 2017-12-08}
+        Expenses:Financial:Commissions      6.95 USD
+        Assets:US:Ameritrade:Main:Cash  -5585.45 USD
 
     """, a2b.RunDispatch(txn))
 
@@ -491,7 +491,7 @@ def test_TRADE__SELL_TRADE__EQUITY():
            'type': 'TRADE'}
     assertEqualEntries("""
 
-      2017-07-05 * "(TRD) SELL TRADE" ^99988877766
+      2017-07-05 * "(TRD) SELL TRADE" ^td-99988877766
         Assets:US:Ameritrade:Main:TSLA       -94 TSLA {} @ 337.2750 USD
         Expenses:Financial:Commissions      6.95 USD
         Expenses:Financial:Fees             0.73 USD
@@ -529,7 +529,7 @@ def test_TRADE__SELL_TRADE__EQUITY():
            'type': 'TRADE'}
     assertEqualEntries("""
 
-      2016-12-29 * "(TRD) SELL TRADE" ^99988877766
+      2016-12-29 * "(TRD) SELL TRADE" ^td-99988877766
         Assets:US:Ameritrade:Main:VEA       -500 VEA {} @ 36.3600 USD
         Expenses:Financial:Fees             0.40 USD
         Assets:US:Ameritrade:Main:Cash  18179.60 USD
@@ -573,7 +573,7 @@ def test_TRADE__BUY_TRADE__OPTION__OPENING():
            'type': 'TRADE'}
     assertEqualEntries("""
 
-      2018-08-30 * "(TRD) BUY TRADE" ^99988877766
+      2018-08-30 * "(TRD) BUY TRADE" ^td-99988877766
         Assets:US:Ameritrade:Main:Options      600 XSP180907P290 {0.9600 USD}
         Expenses:Financial:Commissions        7.95 USD
         Expenses:Financial:Fees               0.08 USD
@@ -615,7 +615,7 @@ def test_TRADE__BUY_TRADE__OPTION__OPENING():
            'type': 'TRADE'}
     assertEqualEntries("""
 
-      2018-08-28 * "(TRD) BUY TRADE" ^99988877766
+      2018-08-28 * "(TRD) BUY TRADE" ^td-99988877766
         Assets:US:Ameritrade:Main:Options       1000 SPY200619P260 {12.4600 USD}
         Expenses:Financial:Commissions          9.95 USD
         Expenses:Financial:Fees                 0.14 USD
@@ -665,7 +665,7 @@ def test_TRADE__SELL_TRADE__OPTION__OPENING():
            'type': 'TRADE'}
     assertEqualEntries("""
 
-      2018-08-27 * "(TRD) SELL TRADE" ^99988877766
+      2018-08-27 * "(TRD) SELL TRADE" ^td-99988877766
         Expenses:Financial:Commissions       9.95 USD
         Expenses:Financial:Fees              0.16 USD
         Assets:US:Ameritrade:Main:Options   -1000 SPY180921C299 {0.2300 USD}
@@ -707,7 +707,7 @@ def test_TRADE__SELL_TRADE__OPTION__OPENING():
            'type': 'TRADE'}
     assertEqualEntries("""
 
-      2018-07-17 * "(TRD) SELL TRADE" ^99988877766
+      2018-07-17 * "(TRD) SELL TRADE" ^td-99988877766
         Assets:US:Ameritrade:Main:Options    -1500 SPY180817C285 {0.9500 USD}
         Expenses:Financial:Commissions       18.20 USD
         Expenses:Financial:Fees               0.30 USD
@@ -751,7 +751,7 @@ def test_TRADE__SELL_TRADE__OPTION__CLOSING():
            'type': 'TRADE'}
     assertEqualEntries("""
 
-      2018-07-23 * "(TRD) SELL TRADE" ^99988877766
+      2018-07-23 * "(TRD) SELL TRADE" ^td-99988877766
         Assets:US:Ameritrade:Main:Options    -5000 SPY180817P250 {} @ 0.2400 USD
         Expenses:Financial:Commissions       44.45 USD
         Expenses:Financial:Fees               0.95 USD
@@ -794,7 +794,7 @@ def test_TRADE__SELL_TRADE__OPTION__CLOSING():
            'type': 'TRADE'}
     assertEqualEntries("""
 
-      2018-02-16 * "(TRD) SELL TRADE" ^99988877766
+      2018-02-16 * "(TRD) SELL TRADE" ^td-99988877766
         Assets:US:Ameritrade:Main:Options    -1000 VTI180216C137 {} @ 3.3500 USD
         Expenses:Financial:Commissions       14.45 USD
         Expenses:Financial:Fees               0.25 USD
@@ -832,7 +832,7 @@ def test_TRADE__TRADE_CORRECTION():
            'type': 'TRADE'}
     assertEqualEntries("""
 
-      2018-08-20 * "(TRD) TRADE CORRECTION" ^99988877766
+      2018-08-20 * "(TRD) TRADE CORRECTION" ^td-99988877766
         Assets:US:Ameritrade:Main:SPY       -1500 SPY {285.0000 USD, 2018-08-20}
         Expenses:Financial:Commissions      19.99 USD
         Expenses:Financial:Fees              5.74 USD
@@ -869,7 +869,7 @@ def test_TRADE__OPTION_ASSIGNMENT():
            'type': 'TRADE'}
     assertEqualEntries("""
 
-      2018-08-20 * "(TRD) OPTION ASSIGNMENT" ^99988877766
+      2018-08-20 * "(TRD) OPTION ASSIGNMENT" ^td-99988877766
         Assets:US:Ameritrade:Main:SPY       -1500 SPY {285.0000 USD, 2018-08-20}
         Expenses:Financial:Commissions      19.99 USD
         Expenses:Financial:Fees              5.74 USD
@@ -908,7 +908,7 @@ def test_TRADE__CLOSE_SHORT_POSITION():
            'type': 'TRADE'}
     assertEqualEntries("""
 
-      2018-08-30 * "(TRD) CLOSE SHORT POSITION" ^99988877766
+      2018-08-30 * "(TRD) CLOSE SHORT POSITION" ^td-99988877766
         Assets:US:Ameritrade:Main:SPY         1300 SPY {} @ 291.0700 USD
         Assets:US:Ameritrade:Main:Cash  -378391.00 USD
         Income:US:Ameritrade:Main:PnL
@@ -942,7 +942,7 @@ def test_RECEIVE_AND_DELIVER__STOCK_SPLIT():
            'type': 'RECEIVE_AND_DELIVER'}
     assertEqualEntries("""
 
-      2017-10-18 * "(RAD) STOCK SPLIT" ^99988877766
+      2017-10-18 * "(RAD) STOCK SPLIT" ^td-99988877766
         Assets:US:Ameritrade:Main:NYF         -500 NYF {}
         Assets:US:Ameritrade:Main:NYF         1000 NYF {}
 
@@ -980,7 +980,7 @@ def test_RECEIVE_AND_DELIVER__REMOVAL_OF_OPTION_DUE_TO_EXPIRATION():
            'type': 'RECEIVE_AND_DELIVER'}
     assertEqualEntries("""
 
-      2018-02-12 * "(RAD) REMOVAL OF OPTION DUE TO EXPIRATION" ^99988877766
+      2018-02-12 * "(RAD) REMOVAL OF OPTION DUE TO EXPIRATION" ^td-99988877766
         Assets:US:Ameritrade:Main:Options  -1000 QQQ180209C158 {} @ 0 USD
         Income:US:Ameritrade:Main:PnL
 
@@ -1016,7 +1016,7 @@ def test_RECEIVE_AND_DELIVER__REMOVAL_OF_OPTION_DUE_TO_EXPIRATION__negative():
     # closing long and short positions.
     assertEqualEntries("""
 
-      2018-09-20 * "(RAD) REMOVAL OF OPTION DUE TO EXPIRATION" ^99988877766
+      2018-09-20 * "(RAD) REMOVAL OF OPTION DUE TO EXPIRATION" ^td-99988877766
         Assets:US:Ameritrade:Main:Options   -1000 XSP180919P275 {} @ 0 USD
         Income:US:Ameritrade:Main:PnL
 
@@ -1049,7 +1049,7 @@ def test_RECEIVE_AND_DELIVER__REMOVAL_OF_OPTION_DUE_TO_ASSIGNMENT():
            'type': 'RECEIVE_AND_DELIVER'}
     assertEqualEntries("""
 
-      2018-08-20 * "(RAD) REMOVAL OF OPTION DUE TO ASSIGNMENT" ^99988877766
+      2018-08-20 * "(RAD) REMOVAL OF OPTION DUE TO ASSIGNMENT" ^td-99988877766
         Assets:US:Ameritrade:Main:Options  -1500 SPY180817C285 {} @ 0 USD
         Income:US:Ameritrade:Main:PnL
 
@@ -1083,7 +1083,7 @@ def test_RECEIVE_AND_DELIVER__REMOVAL_OF_OPTION_DUE_TO_EXERCISE():
            'type': 'RECEIVE_AND_DELIVER'}
     assertEqualEntries("""
 
-      2018-09-10 * "(RAD) REMOVAL OF OPTION DUE TO EXERCISE" ^99988877766
+      2018-09-10 * "(RAD) REMOVAL OF OPTION DUE TO EXERCISE" ^td-99988877766
         Assets:US:Ameritrade:Main:Options  -600 XSP180907P290 {} @ 0 USD
         Income:US:Ameritrade:Main:PnL
 
@@ -1116,7 +1116,7 @@ def test_TRADE__OPTION_EXERCISE():
            'type': 'TRADE'}
     assertEqualEntries("""
 
-      2018-09-10 * "(TRD) OPTION EXERCISE" ^99988877766
+      2018-09-10 * "(TRD) OPTION EXERCISE" ^td-99988877766
         Assets:US:Ameritrade:Main:XSP           -600 XSP {290.0000 USD}
         Expenses:Financial:Commissions         19.99 USD
         Assets:US:Ameritrade:Main:Cash     173980.01 USD
@@ -1150,7 +1150,7 @@ def test_RECEIVE_AND_DELIVER__MANDATORY__NAME_CHANGE():
            'type': 'RECEIVE_AND_DELIVER'}
     assertEqualEntries("""
 
-      2018-06-04 * "(RAD) MANDATORY - NAME CHANGE" ^99988877766
+      2018-06-04 * "(RAD) MANDATORY - NAME CHANGE" ^td-99988877766
 
     """, a2b.RunDispatch(txn), allow_incomplete=True)
 
@@ -1174,6 +1174,35 @@ def test_JOURNAL__MARK_TO_THE_MARKET():
            'transactionItem': {'accountId': 123456789, 'cost': 0.0},
            'transactionSubType': 'MK',
            'type': 'JOURNAL'}
+    assert a2b.RunDispatch(txn) is None
+
+
+def test_JOURNAL__HARD_TO_BORROW_FEE():
+    txn = {
+        "cashBalanceEffectFlag": True,
+        "description": "HARD TO BORROW FEE",
+        "fees": {
+            "additionalFee": 0.0,
+            "cdscFee": 0.0,
+            "commission": 0.0,
+            "optRegFee": 0.0,
+            "otherCharges": 0.0,
+            "rFee": 0.0,
+            "regFee": 0.0,
+            "secFee": 0.0
+        },
+        "netAmount": -0.93,
+        "settlementDate": "2021-01-29",
+        "subAccount": "2",
+        "transactionDate": "2021-01-30T03:06:41+0000",
+        "transactionId": 31902843980,
+        "transactionItem": {
+            "accountId": 123456789,
+            "cost": 0.0
+        },
+        "transactionSubType": "HB",
+        "type": "JOURNAL"
+    }
     assert a2b.RunDispatch(txn) is None
 
 
