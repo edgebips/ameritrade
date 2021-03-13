@@ -54,6 +54,7 @@ from beancount.core.number import MISSING
 from beancount.core.position import Cost
 from beancount.core.position import CostSpec
 from beancount.core import getters
+from beancount.ops import summarize
 from beancount.parser import printer
 from beancount.parser import booking
 from beancount.parser.options import OPTIONS_DEFAULTS
@@ -478,7 +479,7 @@ def DoTrade(txn, commodities):
 
     # Add a P/L leg if we're closing.
     if is_closing:
-        entry.postings.append(Posting(config['pnl']))
+        entry.postings.append(Posting(config['pnl'], Amount(MISSING, config['cash_currency'])))
 
     new_entries.append(entry)
     return new_entries
@@ -897,38 +898,14 @@ def main():
             for entry in data.filter_txns(dispatch_entries):
                 for posting in entry.postings:
                     balance = balances[posting.account]
-                    if posting.units is not None:
+                    if (posting.units is not None and
+                        isinstance(posting.units.number, Decimal)):
                         balance.add_amount(posting.units)
-
-    # Create all the missing Open directives, and make sure the options account
-    # has a booking method permissive for multiple options positions.
-    options_account = config['asset_position'].format(symbol='Options')
-    methods = {options_account: data.Booking.STRICT_WITH_SIZE}
-    open_directives = CreateOpenDirectives(entries, methods)
-    entries[0:0] = open_directives
-
-    if args.booking:
-        # Book the entries.
-        entries, balance_errors = booking.book(entries, OPTIONS_DEFAULTS.copy())
-        if balance_errors:
-            printer.print_errors(balance_errors)
-
-        # Remove dates on reductions when they have no prices. This is an
-        # artifact of not being able to pass in prior balance state to the
-        # booking code, which we will fix in v3.
-        entries = RemoveDateReductions(entries)
-
-        # Match up the trades we can in this subset of the history and pair them up
-        # with a common random id.
-        entries, balances = MatchTrades(entries)
-
-        # Add zero prices for expired options for which we still have non-zero
-        # positions.
-        entries.extend(GetExpiredOptionsPrices(positions, balances))
 
     # If a Beancount ledger has been specified, open it, read it in, and remove
     # all the transactions up to the latest one with the transaction id (as a
     # link) that's present in the ledger.
+    ledger_entries = None
     if args.ledger:
         ledger_entries, _, __ = loader.load_file(args.ledger)
 
@@ -959,6 +936,41 @@ def main():
                 continue
             new_entries.append(entry)
         entries = new_entries
+
+    if args.booking:
+        initial_balances = None
+        if ledger_entries:
+            # Compute initial balances for booking.
+            initial_balances, _ = summarize.balance_by_account(ledger_entries)
+
+        # Create all the missing Open directives, and make sure the options account
+        # has a booking method permissive for multiple options positions.
+        options_account = config['asset_position'].format(symbol='Options')
+        methods = {options_account: data.Booking.STRICT_WITH_SIZE}
+        open_directives = CreateOpenDirectives(entries, methods)
+        entries[0:0] = open_directives
+
+        # Book the entries.
+        entries, balance_errors = booking.book(entries, OPTIONS_DEFAULTS.copy(),
+                                               initial_balances)
+        if balance_errors:
+            printer.print_errors(balance_errors)
+
+        # Remove dates on reductions when they have no prices. This is an
+        # artifact of not being able to pass in prior balance state to the
+        # booking code, which we will fix in v3.
+        entries = RemoveDateReductions(entries)
+
+        # Match up the trades we can in this subset of the history and pair them up
+        # with a common random id.
+        entries, balances = MatchTrades(entries)
+
+        # Add zero prices for expired options for which we still have non-zero
+        # positions.
+        entries.extend(GetExpiredOptionsPrices(positions, balances))
+
+
+
 
     # Add a final balance entry.
     balance_entry = CreateBalance(api, accountId)
