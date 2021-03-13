@@ -33,11 +33,19 @@ def IsOptionSymbol(currency: str) -> bool:
     return bool(re.match(r"[A-Z]+_\d{6}[CP]\d+(\.\d+)?$", currency))
 
 
+# Equivalent underlying symbol names for weeklies and other.
+_EQUIVALENT_UNDERLYINGS = {
+    'SPXW': 'SPX',
+    'RUTW': 'RUT',
+    'NDXP': 'NDX'
+}
+
 def GetUnderlying(currency: str) -> Tuple[str, bool]:
     """Get the currency itself or the underlying, if an option."""
     if IsOptionSymbol(currency):
         opt = ParseOptionSymbol(currency)
-        return opt.symbol, True
+        symbol = _EQUIVALENT_UNDERLYINGS.get(opt.symbol, opt.symbol)
+        return symbol, True
     else:
         return currency, False
 
