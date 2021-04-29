@@ -84,6 +84,9 @@ def ParseOptionSymbol(string: str) -> Option:
 
 def MakeOptionSymbol(opt: Option) -> str:
     """Build an option symbol given an option."""
+    # TODO(blais): We should convert this to '%y%m%d' with the year as the
+    # beginning. While we're at it, remove periods. Convert all existing
+    # symbols.
     return '{}_{:%m%d%y}{}{}'.format(opt.symbol,
                                      opt.expiration,
                                      opt.side[0].upper(),
