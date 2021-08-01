@@ -3,7 +3,7 @@
 __author__ = 'Martin Blais <blais@furius.ca>'
 __license__ = "GNU GPLv2"
 
-
+import re
 from typing import Any, Dict, Optional, Union
 
 import ameritrade as td
@@ -53,3 +53,9 @@ def IsOrderActive(order: JSON) -> bool:
                for child in order['childOrderStrategies']):
             return True
     return False
+
+
+def NormalizeOrderId(order_id: str) -> str:
+    """Strip the sequence part of the order id, if present."""
+    match = re.match(r"([A-Z0-9]+)\.\d+", order_id)
+    return match.group(1) if match else order_id

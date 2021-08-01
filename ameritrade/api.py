@@ -229,6 +229,7 @@ class CallableMethod:
         if self.method.http_method == 'GET':
             # Those methods have query params (something none of them), never a
             # payload, but always a JSON response.
+            logging.debug("With params: %s", params)
             call = lambda hdrs: requests.get(url, params=params, headers=hdrs)
             retvalue = lambda r: r.json(**JSON_KWARGS) if r.text else None
 
@@ -241,6 +242,7 @@ class CallableMethod:
         elif self.method.http_method in {'POST', 'PUT', 'PATCH'}:
             # These methods never have query params but all have a payload.
             # Never a response body.
+            logging.debug("With payload: %s", kw['payload'])
             extra_headers['Content-Type'] = 'application/json'
             method = getattr(requests, self.method.http_method.lower())
             call = lambda hdrs: method(url, json=kw['payload'], headers=hdrs)
