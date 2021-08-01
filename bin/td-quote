@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+"""Fetch a quote using the GetQuotes() endpoint.
+"""
+__author__ = 'Martin Blais <blais@furius.ca>'
+
+import argparse
+import logging
+import pprint
+import json
+import sys
+
+import petl
+petl.config.look_style = 'minimal'
+
+import ameritrade
+
+
+def main():
+    """Compute various vol estimates."""
+    logging.basicConfig(level=logging.INFO, format='%(levelname)-8s: %(message)s')
+
+    parser = argparse.ArgumentParser(description=__doc__.strip())
+
+    parser.add_argument('symbols', action='append', nargs='?',
+                        help="TD symbols to get a quote for.")
+
+    ameritrade.add_args(parser)
+    args = parser.parse_args()
+    config = ameritrade.config_from_args(args)
+    api = ameritrade.open(config)
+
+    quotes = api.GetQuotes(symbol=','.join(args.symbols))
+    if not quotes:
+        print('(No response)', file=sys.stderr)
+        return
+
+    for quote in quotes.values():
+        if quote['assetType'] == 'FUTURE':
+            quote['bidPrice'] = quote['bidPriceInDouble']
+            quote['askPrice'] = quote['askPriceInDouble']
+            quote['lastPrice'] = quote['lastPriceInDouble']
+            quote['volatility'] = '?'
+            quote['expiration'] = '?'
+
+    # Equity options have expiration date as:
+    # 'expirationDay': 20,
+    # 'expirationMonth': 8,
+    # 'expirationYear': 2021,
+    #
+    # Futures have expiration date as:
+    # 'futureExpirationDate': 1629432000000,
+
+    table = (petl.fromdicts(quotes.values())
+             .cut('symbol', 'description',
+                  'mark', 'lastPrice', 'bidPrice', 'askPrice',
+                  'volatility'))
+    print(table.lookallstr())
+
+
+if __name__ == '__main__':
+    main()

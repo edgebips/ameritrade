@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+"""Fetch an options chain using the GetOptionChain() endpoint.
+"""
+__author__ = 'Martin Blais <blais@furius.ca>'
+
+import argparse
+import datetime
+import logging
+import pprint
+import json
+import sys
+import re
+
+import petl
+petl.config.look_style = 'minimal'
+
+import ameritrade
+
+
+def main():
+    """Compute various vol estimates."""
+    logging.basicConfig(level=logging.INFO, format='%(levelname)-8s: %(message)s')
+
+    parser = argparse.ArgumentParser(description=__doc__.strip())
+
+    parser.add_argument('symbols', action='append', nargs='?',
+                        help="TD symbols to get a quote for.")
+
+    ameritrade.add_args(parser)
+    args = parser.parse_args()
+    config = ameritrade.config_from_args(args)
+    api = ameritrade.open(config)
+
+    # fromDate = datetime.date.today() + datetime.timedelta(days=5)
+    # toDate = datetime.date.today() + datetime.timedelta(days=45)
+    for symbol in args.symbols:
+        match = re.match(r'(.*)_(\d\d)(\d\d)(\d\d)([CP])([0-9.]+)', symbol)
+        if not match:
+            logging.error("Invalid options symbol: %s", symbol)
+            continue
+        month, day, year = match.group(2,3,4)
+        month, day, year = int(month), int(day), 2000 + int(year)
+        expiration = datetime.date(year, month, day)
+        underlying = match.group(1)
+        chains = api.GetOptionChain(symbol=underlying,
+                                    strategy='SINGLE',
+                                    fromDate=expiration,
+                                    toDate=expiration)
+
+        quotes = [quote[0]
+                  for expi, chain in chains['callExpDateMap'].items()
+                  for strike, quote in chain.items()]
+        table = (petl.fromdicts(quotes))
+                 .cut('symbol', 'description',
+                      'mark', 'lastPrice', 'bidPrice', 'askPrice',
+                      'volatility'))
+        print(table.lookallstr())
+
+
+if __name__ == '__main__':
+    main()
