@@ -316,6 +316,7 @@ class CachedMethod:
             logging.info("{%s} Cache miss for call to %s", digest, self.method_name)
             response = self.method(**kw)
             logging.info("{%s} Updating cache for call to %s", digest, self.method_name)
-            with builtins.open(cache_path, 'w') as infile:
-                json.dump(response, infile, sort_keys=True, indent=4, use_decimal=True)
+            if 'error' not in response:
+                with builtins.open(cache_path, 'w') as infile:
+                    json.dump(response, infile, sort_keys=True, indent=4, use_decimal=True)
             return response
