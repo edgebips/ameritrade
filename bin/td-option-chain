@@ -22,10 +22,8 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(levelname)-8s: %(message)s')
 
     parser = argparse.ArgumentParser(description=__doc__.strip())
-
     parser.add_argument('symbols', action='append', nargs='?',
                         help="TD symbols to get a quote for.")
-
     ameritrade.add_args(parser)
     args = parser.parse_args()
     config = ameritrade.config_from_args(args)
@@ -47,14 +45,27 @@ def main():
                                     fromDate=expiration,
                                     toDate=expiration)
 
-        quotes = [quote[0]
-                  for expi, chain in chains['callExpDateMap'].items()
-                  for strike, quote in chain.items()]
-        table = (petl.fromdicts(quotes))
-                 .cut('symbol', 'description',
-                      'mark', 'lastPrice', 'bidPrice', 'askPrice',
-                      'volatility'))
-        print(table.lookallstr())
+        calls = (petl.fromdicts([quote[0]
+                                 for expi, chain in chains['callExpDateMap'].items()
+                                 for strike, quote in chain.items()])
+                 .addfield('putcall', 'CALL'))
+        puts = (petl.fromdicts([quote[0]
+                                for expi, chain in chains['putExpDateMap'].items()
+                                for strike, quote in chain.items()])
+                .addfield('putcall', 'PUT'))
+        table = (petl.cat(calls, puts)
+                 .addfield('underlyingPrice', chains['underlyingPrice'])
+                 .addfield('interestRate', chains['interestRate']))
+        table = (table
+                 .cut('description', 'putcall', 'strikePrice',
+                      'mark', 'last', 'bid', 'ask',
+                      'volatility',
+                      'underlyingPrice', 'interestRate', 'daysToExpiration')
+                 .rename({'strikePrice': 'strike',
+                          'underlyingPrice': 'underlying',
+                          'daysToExpiration': 'days'}))
+        #print(table.lookallstr())
+        table.tocsv(petl.StdoutSource())
 
 
 if __name__ == '__main__':

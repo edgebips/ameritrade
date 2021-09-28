@@ -12,6 +12,12 @@ import ameritrade as td
 JSON = Dict[str, Union[str, float, int, 'JSON']]
 
 
+def IsRateLimited(resp: JSON) -> bool:
+    """Predicate for whether the response has been rate limited."""
+    return ('error' in resp and
+            re.search("transactions per seconds restriction reached", resp["error"]))
+
+
 def GetMainAccount(api: td.AmeritradeAPI, acctype: Optional[str]=None) -> str:
     """Returns the largest account of a particular type."""
     matching_accounts = []

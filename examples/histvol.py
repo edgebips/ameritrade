@@ -7,14 +7,21 @@ import argparse
 import collections
 import logging
 import math
+from decimal import Decimal
 
 import numpy
 from scipy.stats import norm
+import petl
+petl.config.look_style = 'minimal'
+petl.compat.numeric_types = petl.compat.numeric_types + (Decimal,)
+petl.config.failonerror = True
 
 import ameritrade
+import petl
 
 
 Candle = collections.namedtuple('Candle', 'datetime open low high close volume')
+Q = Decimal('0.01')
 
 
 def price_history_to_arrays(history):
@@ -58,19 +65,23 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(levelname)-8s: %(message)s')
     parser = argparse.ArgumentParser(description=__doc__.strip())
     ameritrade.add_args(parser)
+    parser.add_argument('-s', '--symbol', action='store', default='SPY',
+                        help="Symbol to compute on")
     args = parser.parse_args()
     config = ameritrade.config_from_args(args)
     api = ameritrade.open(config)
 
     # Fetch call chain for underlying.
-    hist = api.GetPriceHistory(symbol='SPY',
+    hist = api.GetPriceHistory(symbol=args.symbol,
                                frequency=1, frequencyType='daily',
                                period=2, periodType='year')
     candle = price_history_to_arrays(hist)
 
     # Compute historical volatility estimates and centile of vol distribution of
     # underlying over various time periods.
-    for days in [7, 15, 30, 60, 90, 120, 180, 365, None]:
+    header = ['windays', 'annual_vol', 'iv_percentile', 'mean', 'std']
+    rows = [header]
+    for days in [7, 15, 20, 30, 60, 90, 120, 180, 365, None]:
         centiles = True
         if days is None:
             centiles = False
@@ -83,11 +94,21 @@ def main():
             meanvol = numpy.mean(vols)
             stdvol = numpy.std(vols)
             centile = norm.cdf(vol, meanvol, stdvol)
-            print("Vol over {:3} days: {:8.2f}"
-                  "  (centile: {:5.1%} - {:.1f}~{:.1f})".format(
-                      days, vol, centile, meanvol, stdvol))
+            rows.append([days, vol, centile, meanvol, stdvol])
+            # print("Vol over {:3} days: {:8.2f}"
+            #       "  (IVpct: {:5.1%}; mean/std: {:.1f}~{:.1f})".format(
+            #           days, vol, centile, meanvol, stdvol))
         else:
-            print("Vol over {:3} days: {:8.2f}".format(days, vol))
+            #print("Vol over {:3} days: {:8.2f}".format(days, vol))
+            rows.append([days, vol, '', '', ''])
+    convert = lambda v: Decimal(v).quantize(Q) if v else ''
+    table = (petl.wrap(rows)
+             .convert('annual_vol', convert)
+             .convert('iv_percentile', convert)
+             .convert('mean', convert)
+             .convert('std', convert)
+             .cut('windays', 'mean', 'std', 'annual_vol', 'iv_percentile'))
+    print(table.lookallstr())
 
 
 if __name__ == '__main__':
