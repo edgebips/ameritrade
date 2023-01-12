@@ -35,7 +35,6 @@ def GetPositions(accounts) -> pd.DataFrame:
                        inst['symbol'],
                        inst['description'],
                        maintenance]
-                pprint.pprint(pos)
                 rows.append(row)
     return pd.DataFrame(
         rows, columns=['quantity', 'underlying', 'cusip', 'symbol', 'description', 'maint'])

@@ -3,20 +3,19 @@
 __author__ = 'Martin Blais <blais@furius.ca>'
 __license__ = "GNU GPLv2"
 
-
-from typing import Any, Optional
+import re
+from typing import Any, Dict, Optional, Union
 
 import ameritrade as td
 
 
-ACTIVE_STATUS = frozenset({
-    'AWAITING_PARENT_ORDER',
-    'AWAITING_CONDITION',
-    'AWAITING_MANUAL_REVIEW',
-    'ACCEPTED',
-    'PENDING_ACTIVATION',
-    'QUEUED',
-    'WORKING'})
+JSON = Dict[str, Union[str, float, int, 'JSON']]
+
+
+def IsRateLimited(resp: JSON) -> bool:
+    """Predicate for whether the response has been rate limited."""
+    return ('error' in resp and
+            re.search("transactions per seconds restriction reached", resp["error"]))
 
 
 def GetMainAccount(api: td.AmeritradeAPI, acctype: Optional[str]=None) -> str:
@@ -38,3 +37,31 @@ def GetPositions(api: td.AmeritradeAPI, account_id: str) -> Any:
     account = api.GetAccount(accountId=account_id, fields='positions')
     acc = next(iter(account.items()))[1]
     return acc['positions']
+
+
+ACTIVE_STATUS = frozenset({
+    'AWAITING_PARENT_ORDER',
+    'AWAITING_CONDITION',
+    'AWAITING_MANUAL_REVIEW',
+    'ACCEPTED',
+    'PENDING_ACTIVATION',
+    'QUEUED',
+    'WORKING'})
+
+
+def IsOrderActive(order: JSON) -> bool:
+    """Predicate for when an order is active."""
+    if 'status' in order:
+        if order['status'] in ACTIVE_STATUS:
+            return True
+    if 'childOrderStrategies' in order:
+        if any(child['status'] in ACTIVE_STATUS
+               for child in order['childOrderStrategies']):
+            return True
+    return False
+
+
+def NormalizeOrderId(order_id: str) -> str:
+    """Strip the sequence part of the order id, if present."""
+    match = re.match(r"([A-Z0-9]+)\.\d+", order_id)
+    return match.group(1) if match else order_id
